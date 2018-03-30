@@ -2,14 +2,16 @@ tic
 
 %% Open and read video data
 %vidObj = VideoReader('/home/lucas/Videos/DSP/MN002.avi');
-vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\FN005.avi');
+vidName = "MN003";
+vidObj = VideoReader(char("C:\Users\lucassalazar12\Videos\DSP\" + vidName + ".avi"));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 k = 1;
-vidObj.CurrentTime = 0;
-while vidObj.CurrentTime <= 0.1
+startTime = 1.7;
+vidObj.CurrentTime = startTime;
+while vidObj.CurrentTime <= startTime + 0.1
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
 end
@@ -27,8 +29,8 @@ waitforbuttonpress
 load('training_data.mat')
 [nImages,~] = size(FDmatrix);       % Number of training images
 
-fdthresh = 0.2;        % Fourier Descriptor Dissimilarity threshold
-gndthresh = 0.4;        % GND threshold
+fdthresh = 0.6;        % Fourier Descriptor Dissimilarity threshold
+gndthresh = 0.23;        % GND threshold
 
 % Celda para guardar contornos reconocidos de glotis
 recGlottis = {};
@@ -344,7 +346,7 @@ for i = 1:size(recGlottis,1)
         %%%%%%%%%%%%%%%%%%%%%%%%%
         
         % Save data for further testing
-        %save('pimage_testdata.mat');
+        save(char("pimage_testdata_" + vidName + ".mat"));
 
         % Calcular histograma 3d para 8 puntos en el borde
         [histos, step] = colorhist(s(prevframe).cdata, shape, border, roimask, idxlow, idxhigh);
