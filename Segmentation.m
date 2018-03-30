@@ -2,14 +2,14 @@ tic
 
 %% Open and read video data
 %vidObj = VideoReader('/home/lucas/Videos/DSP/MN002.avi');
-vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\MN002.avi');
+vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\FN005.avi');
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 k = 1;
 vidObj.CurrentTime = 0;
-while vidObj.CurrentTime <= 3
+while vidObj.CurrentTime <= 0.1
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
 end
@@ -33,8 +33,9 @@ gndthresh = 0.4;        % GND threshold
 % Celda para guardar contornos reconocidos de glotis
 recGlottis = {};
 
-waitsm = 0;
-waitlg = 0;
+waitsm = 0.01;
+waitlg = 1;
+waitseg = 0;
 
 for i = 1:length(s)
     fprintf('\n-----------------------------------------------\n----------------------------------------------\n');
@@ -177,7 +178,7 @@ end
 fprintf('------------------------------------------\n');
 fprintf('------------------------------------------\n');
 fprintf('Regognition part is done! Proceeding with segmentation...\n\n');
-pause(0)
+pause(waitseg)
 
 %% Segmentation part
 
@@ -341,6 +342,9 @@ for i = 1:size(recGlottis,1)
         %%%%%%%%%%%%%%%%%%%%%%%%%
         %%%% PROBABILITY IMAGE %%
         %%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        % Save data for further testing
+        %save('pimage_testdata.mat');
 
         % Calcular histograma 3d para 8 puntos en el borde
         [histos, step] = colorhist(s(prevframe).cdata, shape, border, roimask, idxlow, idxhigh);
@@ -421,8 +425,8 @@ for i = 1:size(recGlottis,1)
         subplot(2,3,4); imshow(pbinimg); title('Threshold')
         subplot(2,3,5); imshow(pseg); title('Level-set segmentation')
          
-%         %imshow(pseg)
-%         %pause(waitsm)
+%         imshow(pseg)
+%         pause(waitsm)
 
     
 
