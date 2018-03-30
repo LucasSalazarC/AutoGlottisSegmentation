@@ -2,14 +2,14 @@ tic
 
 %% Open and read video data
 %vidObj = VideoReader('/home/lucas/Videos/DSP/MN002.avi');
-vidName = "MN003";
+vidName = "FN005";
 vidObj = VideoReader(char("C:\Users\lucassalazar12\Videos\DSP\" + vidName + ".avi"));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 k = 1;
-startTime = 1.7;
+startTime = 0;
 vidObj.CurrentTime = startTime;
 while vidObj.CurrentTime <= startTime + 0.1
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
