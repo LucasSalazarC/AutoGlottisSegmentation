@@ -13,10 +13,10 @@ GNDmatrix = zeros(length(imgList),8);
 
 for i = 1:length(imgList)
     % Imagen completa
-    I = imread(char(imgList(i,1)));
+    I = imread(char("Images\" + imgList(i,1)));
     
     % Leer y binarizar imagen segmentada
-    Iseg = imread(char(imgList(i,2)));
+    Iseg = imread(char("Images\" + imgList(i,2)));
     Iseg = rgb2gray(Iseg);
     thr = graythresh(Iseg);
     Ibin = im2bw(Iseg, thr);
