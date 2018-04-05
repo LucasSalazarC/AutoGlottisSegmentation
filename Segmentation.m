@@ -2,16 +2,16 @@ tic
 
 %% Open and read video data
 %vidObj = VideoReader('/home/lucas/Videos/DSP/MN002.avi');
-vidName = "FN005";
+vidName = "MN003";
 vidObj = VideoReader(char("C:\Users\lucassalazar12\Videos\DSP\" + vidName + ".avi"));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 k = 1;
-startTime = 0;
+startTime = 1.7;
 vidObj.CurrentTime = startTime;
-while vidObj.CurrentTime <= startTime + 0.1
+while vidObj.CurrentTime <= startTime + 0.3
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
 end
@@ -346,7 +346,7 @@ for i = 1:size(recGlottis,1)
         %%%%%%%%%%%%%%%%%%%%%%%%%
         
         % Save data for further testing
-        save(char("pimage_testdata_" + vidName + ".mat"));
+        %save(char("pimage_testdata_" + vidName + ".mat"));
 
         % Calcular histograma 3d para 8 puntos en el borde
         [histos, step] = colorhist(s(prevframe).cdata, shape, border, roimask, idxlow, idxhigh);
