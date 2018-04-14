@@ -147,10 +147,5 @@ asdmat = [3.5 0; 0 0];
 ~all(eig(asdmat) > eps)
 
 
-%%
 
-figure(30)
-image(pseg)
-colormap(gray(2))
-axis image
 

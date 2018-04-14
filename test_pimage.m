@@ -20,7 +20,9 @@ vecmap = 0:255;
 vecmap = vecmap';
 vecmap(:,2) = floor(vecmap(:,1)/quantize);
 
-[histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, 11, 5);
+npoints = 3;
+filtsigma = 3;
+[histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
 bpoints = cell2mat(histos(:,1));
 toc
 tic
@@ -76,27 +78,27 @@ subplot(1,3,3), hold off, image(s(prevframe).cdata), hold on, plot(bpoints(:,1),
 % 
 % % Filtered histograms
 % N = vecmap(end,2) + 1;
-% L = round(256/quantize);
+% L = round(100/quantize);
 % [X,Y] = meshgrid(0:vecmap(end,2), 0:vecmap(end,2));
-% bg_lset = reshape(histobg(L,:,:), N, N);
-% glot_lset = reshape(histoglot(L,:,:), N, N);
+% bg_lset = reshape(histobg(:,L,:), N, N);
+% glot_lset = reshape(histoglot(:,L,:), N, N);
 % 
 % figure(6)
 % mesh(Y, X, bg_lset)
-% xlabel('G')
+% xlabel('R')
 % ylabel('B')
 % 
 % figure(9)
 % mesh(Y, X, glot_lset)
-% xlabel('G')
+% xlabel('R')
 % ylabel('B')
 % 
-% pglot = 0.01;
-% pbg = 0.99;
+% pglot = 0.5;
+% pbg = 0.5;
 % figure(11)
 % probs = glot_lset*pglot ./ (bg_lset*pbg + glot_lset*pglot);
 % mesh(Y, X, probs)
-% xlabel('G')
+% xlabel('R')
 % ylabel('B')
 % 
 % 
