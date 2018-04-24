@@ -2,7 +2,7 @@
 %%%% PROBABILITY IMAGE %%
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-load('pimage_testdata_FN003.mat');
+load('testing_data\pimage_testdata_FN003.mat');
 
 % shape: Binary image. Glottis are zeros, the rest are ones
 % border: coordinates of the border; (x,y)

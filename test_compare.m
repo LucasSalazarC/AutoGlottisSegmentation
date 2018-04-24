@@ -1,4 +1,4 @@
-load('borders_testdata.mat')
+load('testing_data\borders_testdata.mat')
 
 b2 = b3;
 

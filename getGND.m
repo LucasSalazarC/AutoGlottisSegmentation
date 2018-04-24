@@ -48,49 +48,28 @@ function GND = getGND(I, Ibin, B, idxlow, idxhigh)
         % Evaluar color solo en puntos dentro de un area cuadrada en torno al
         % punto base
         p = B(bpoints(j),:);    % x -> columna 1, y -> columna 2
-        pini = p - wsize*sigma;
-        pfin = p + wsize*sigma;
-
-        % Corregir indices fuera de rango
-        inicorr = [0 0];
-        %fincorr = [0 0];
-        if pini(1) < 1
-            inicorr(1) = 1 - pini(1);
-            pini(1) = 1;
-        end
-        if pini(2) < 1
-            inicorr(2) = 1 - pini(2);
-            pini(2) = 1;
-        end
-        [r,c] = size(Ibin);
-        if pfin(1) > c
-            %fincorr(1) = pfin(1) - c;
-            pfin(1) = c;
-        end
-        if pfin(2) > r
-            %fincorr(2) = pfin(2) - r;
-            pfin(2) = r;
-        end
-
-        ycorr = 1 - pini(2) + inicorr(2);
-        xcorr = 1 - pini(1) + inicorr(1);
+        [rows,cols] = size(Ibin);
 
         % Calcular color medio ponderado por distancia 
         intnum = zeros(3,1);
         intden = 0;
         extnum = zeros(3,1);
         extden = 0;
-        for n = pini(1):pfin(1)
-            for m = pini(2):pfin(2)
-                color = double(reshape(I(m,n,:),3,1));
-                weight = gmatrix(m + ycorr, n + xcorr);
+        for n = -wsize*sigma:wsize*sigma
+            for m = -wsize*sigma:wsize*sigma
+                n_im = n + p(1);
+                m_im = m + p(2);
+                if n_im > 0 && n_im <= cols && m_im > 0 && m_im <= rows
+                    color = double(reshape(I(m_im,n_im,:),3,1));
+                    weight = gmatrix(m + wsize*sigma + 1, n + wsize*sigma + 1);
 
-                if Ibin(m,n)    % Outside glottis   
-                    extnum = extnum + color*weight;
-                    extden = extden + weight;
-                else            % Inside glottis
-                    intnum = intnum + color*weight;
-                    intden = intden + weight;
+                    if Ibin(m_im,n_im)    % Outside glottis   
+                        extnum = extnum + color*weight;
+                        extden = extden + weight;
+                    else            % Inside glottis
+                        intnum = intnum + color*weight;
+                        intden = intden + weight;
+                    end
                 end
             end
         end

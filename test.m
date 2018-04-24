@@ -146,6 +146,42 @@ asdmat = [3.5 0; 0 0];
 
 ~all(eig(asdmat) > eps)
 
+%% Edit plot
+
+close all
+figure(3)
+hold on
+plot(3,4,'b*')
+plot(4,4,'b*')
+plot(5,4,'b*')
+axis([2 6 0 5])
+
+c = get(gca,'children');
+
+temp = c(1);
+c(1) = c(3);
+c(3) = temp;
+delete(c(1))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

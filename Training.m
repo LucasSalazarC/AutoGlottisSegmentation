@@ -11,6 +11,8 @@ N = 30;
 FDmatrix = zeros(length(imgList),N);
 GNDmatrix = zeros(length(imgList),8);
 
+figure(1)
+hold off
 for i = 1:length(imgList)
     % Imagen completa
     I = imread(char("Images\" + imgList(i,1)));
@@ -36,7 +38,7 @@ for i = 1:length(imgList)
     FDmatrix(i,:) = FD;
     Brec = ifft(FD);
 
-    figure(1)
+    
     plot(real(Brec),imag(Brec))
     hold on
     axis ij
@@ -70,26 +72,28 @@ end
 coef = coef(:,1:2);
 decomp = (GNDmatrix * coef);
 
-% Histograma con gaussian kernel smoothing
-extend = [300 300];
-xi = round(min(decomp(:,1)) - extend(1));
-xf = round(max(decomp(:,1)) + extend(1));
-yi = round(min(decomp(:,2)) - extend(2));
-yf = round(max(decomp(:,2)) + extend(2));
-step = 2;
-xaxis = xi:step:xf;
-yaxis = yi:step:yf;
-
-xbw = 60;
-ybw = 90;
-
-
-[X,Y] = meshgrid(xaxis, yaxis);
-gndhisto = zeros(size(X));
-for i = 1:length(decomp)
-    kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
-    gndhisto = gndhisto + kernel;
-end
+% % Histograma con gaussian kernel smoothing
+% extend = [300 300];
+% xi = round(min(decomp(:,1)) - extend(1));
+% xf = round(max(decomp(:,1)) + extend(1));
+% yi = round(min(decomp(:,2)) - extend(2));
+% yf = round(max(decomp(:,2)) + extend(2));
+% step = 2;
+% xaxis = xi:step:xf;
+% yaxis = yi:step:yf;
+% 
+% xbw = 60;
+% ybw = 90;
+% 
+% 
+% [X,Y] = meshgrid(xaxis, yaxis);
+% gndhisto = zeros(size(X));
+% for i = 1:length(decomp)
+%     kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
+%     gndhisto = gndhisto + kernel;
+% end
+figure(3)
+ksdensity(decomp);
 
 % Normalizar y graficar
 gndhisto = gndhisto / max(max(gndhisto));
@@ -103,7 +107,7 @@ ylabel('Y: Componente 2')
 % histograma generado (ejes + valores en z) y  los coeficientes pca para
 % poder proyectar las muestras.
 
-save('training_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+%save('training_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
 
 
 
