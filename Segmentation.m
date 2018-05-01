@@ -1,22 +1,27 @@
+function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef)
+
 tic
 
 %% Open and read video data
-%vidObj = VideoReader('/home/lucas/Videos/DSP/MN002.avi');
-vidName = "MN003";
-vidObj = VideoReader(char("C:\Users\lucassalazar12\Videos\DSP\" + vidName + ".avi"));
+% vidName = 'FN002_adapt';
+% vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
+vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
+vidSize = [vidHeight vidWidth];
+
 k = 1;
-startTime = 1.7;
+startTime = 0;
 vidObj.CurrentTime = startTime;
-while vidObj.CurrentTime <= startTime + 0.3
+endTime = startTime + frames/vidObj.FrameRate;
+while vidObj.CurrentTime <= endTime
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
 end
 
-waitforbuttonpress
+% waitforbuttonpress
 
 %% Processing: Recognition part
 
@@ -26,17 +31,18 @@ waitforbuttonpress
 %   xaxis -> Eje x del histograma (primera componente)
 %   yaxis -> Eje y del histograma (segunda componente)
 %   coef -> Coeficientes PCA para reducir dimensionalidad de GND
-load('training_data.mat')
+% load('training_data\trained_data.mat')
+
 [nImages,~] = size(FDmatrix);       % Number of training images
 
-fdthresh = 0.6;        % Fourier Descriptor Dissimilarity threshold
-gndthresh = 0.23;        % GND threshold
+fdthresh = 0.32;        % Fourier Descriptor Dissimilarity threshold
+gndthresh = 0.4;        % GND threshold
 
 % Celda para guardar contornos reconocidos de glotis
 recGlottis = {};
 
-waitsm = 0.01;
-waitlg = 1;
+waitsm = 0;
+waitlg = 0;
 waitseg = 0;
 
 for i = 1:length(s)
@@ -46,6 +52,11 @@ for i = 1:length(s)
     % Para guardar indice del potencial borde de glotis
     thrindex = 0;
     bestDsim = inf;
+    
+    % For testing purposes
+%     figure(20)
+%     image(s(i).cdata)
+%     hold on
     
     % Umbral aumenta de 1 hasta 80. Se buscan figuras con forma de glotis
     for j = 1:80
@@ -62,9 +73,12 @@ for i = 1:length(s)
             B = allBorders{k};              % Clockwise order
             B = flipud(B);                  % Counterclockwise
             B = fliplr(B);                  % x -> columna 1, y -> columna 2
+            
+            % Testing purposes
+%             fprintf('L = %d\n', length(B));
 
-            % Agregado por mi :D Filtra mucho mejor de esta forma...
-            if length(B) < 50 || length(B) > 500
+            % Filter shapes too small, too big, or touching the edge of the image
+            if length(B) < 30 || length(B) > 500 || check_out_of_bounds(B, size(openedframe), 'image')
                 continue
             end
          
@@ -85,12 +99,17 @@ for i = 1:length(s)
             end
             normMean = normMean / nImages;
             
-            %fprintf('Threshold = %d; Borde %d: %f\n', j, k, normMean);
             if normMean < bestDsim
                 thrindex = j;
                 bestDsim = normMean;
                 bestB = B;
             end
+            
+%             % For testing purposes
+%             fprintf('T = %d; B %d; FDsim = %f; L = %d\n', j, k, normMean, length(B));
+%             plot(B(:,1), B(:,2), 'y*', 'Markersize', 0.5)
+%             waitforbuttonpress
+%             unplot
         end
         
         % Evaluar potenciales bordes, si es que hay
@@ -115,10 +134,19 @@ for i = 1:length(s)
         plot(bestB(:,1), bestB(:,2), 'y*', 'MarkerSize', 0.5)
         pause(waitlg);
         
+%         % Testing purposes
+%         save('test\lgd_testdata2.mat');
+        
         % Aplicar algoritmo de ajuste de contorno
         fprintf('Ajustando contorno...\n');
         c = contourLGD(bestB, rgb2gray(s(i).cdata), 300);       % Variable c es el contorno
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
+        
+        % Border must be in counterclockwise order. Y axis is inverted, so we negate the output of
+        % ispolycw function.
+        if ~ispolycw(c(:,1), c(:,2))
+            c = flipud(c);
+        end
         
         % Need at least 30 values for FD
         if length(c) < 30
@@ -176,6 +204,12 @@ for i = 1:length(s)
     end
 end
 
+if isempty(recGlottis)
+    fprintf('Algorithm failed. No glottis found\n');
+    outputContours = cell(frames,1);
+    return
+end
+
 
 fprintf('------------------------------------------\n');
 fprintf('------------------------------------------\n');
@@ -189,6 +223,7 @@ frameflag = false(length(s), 1);
 
 % To save video frames
 segvideo = cell(length(s),1);
+outputContours = cell(frames,1);
 
 % Sort by FD dissimilarity
 recGlottis = sortrows(recGlottis, 6);
@@ -223,6 +258,7 @@ for i = 1:size(recGlottis,1)
         vidFrame(m,n,3) = 0;
     end
     segvideo(prevframe) = {vidFrame};
+    outputContours(prevframe) = {border};
     
     fprintf('\nBeginning with frame %d...\n', prevframe);
     
@@ -346,58 +382,63 @@ for i = 1:size(recGlottis,1)
         %%%%%%%%%%%%%%%%%%%%%%%%%
         
         % Save data for further testing
-        %save(char("pimage_testdata_" + vidName + ".mat"));
+        save(char("test\pimage_testdata_new_" + vidName + ".mat"));
 
         % Calcular histograma 3d para 8 puntos en el borde
-        [histos, step] = colorhist(s(prevframe).cdata, shape, border, roimask, idxlow, idxhigh);
+        % Mapping to quantize colors
+        quantize = 2;
+        vecmap = 0:255;
+        vecmap = vecmap';
+        vecmap(:,2) = floor(vecmap(:,1)/quantize);
+
+        npoints = 6;
+        filtsigma = 3;
+        [histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
         bpoints = cell2mat(histos(:,1));
 
         % Closest base points for each ROI point
         rpts = [rpts; [cg rg]];    % Ahora sí es la ROI entera, incluyendo glotis
         idxs = dsearchn(bpoints, rpts);
 
-        % Vector map and interpolate histogram
-        ihist = cell(8,2);
-        for j = 1:8
-            ihist(j,:) = {interpn(cell2mat(histos(j,2)),1), interpn(cell2mat(histos(j,3)),1)};
-        end
-        L = length(cell2mat(ihist(1,1)));
-        vecmap = 1:256;
-        vecmap = floor(L*vecmap/256.01) + 1;
-
         % Calculate probability image
         I = s(curframe).cdata;
         pimage = zeros(size(shape));
-        testpimage = zeros(size(shape));
         for j = 1:length(rpts)
-            color = double(reshape(I(rpts(j,2),rpts(j,1),:),1,3)) + 1;
+            color = double(reshape(I(rpts(j,2),rpts(j,1),:),1,3))/quantize;
             idx = idxs(j);
 
-            histobg = cell2mat(ihist(idx,1));
-            histoglot = cell2mat(ihist(idx,2));
+            histobg = cell2mat(histos(idx,2));
+            histoglot = cell2mat(histos(idx,3));
 
-            r = vecmap(color(1));
-            g = vecmap(color(2));
-            b = vecmap(color(3));
-            bglike = histobg(r,g,b);
-            glotlike = histoglot(r,g,b);
+            if quantize == 1
+                color = color + 1;
+                bglike = histobg(color(1), color(2), color(3));
+                glotlike = histoglot(color(1), color(2), color(3));
+            else
+                bglike = trilinear_interp2(color, histobg, vecmap);
+                glotlike = trilinear_interp2(color, histoglot, vecmap);
+            end
 
+            if bglike < 0
+                bglike = 0;
+            end
+
+%             pglot = glotprobs(idx);
+%             pbg = 1 - pglot;
             pglot = 0.5;
             pbg = 0.5;
 
             postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
-            
-            if (r < 3 && g < 3 && b < 3) || r == 1  % Black areas, outside of camera
+            if postprob < 0
                 pimage(rpts(j,2), rpts(j,1)) = 0;
             else
                 pimage(rpts(j,2), rpts(j,1)) = postprob * 255;
             end
-            
-            if glotlike > bglike && r > 1
-                testpimage(rpts(j,2), rpts(j,1)) = 255;
-            end
         end
         
+        pimage = uint8(pimage);
+%         figure(10)
+%         image(pimage); title('Probability Image'); colormap(gray(255));
 
 
 
@@ -406,24 +447,21 @@ for i = 1:size(recGlottis,1)
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         %%%% LEVEL-SET SEGMENTATION %%
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-        % Binarize by thresholding, then apply opening
-%         pbinimg = uint8(pimage);
-%         pbinimg = im2bw(pbinimg, 160/255);
         
-        pbinimg = im2bw(testpimage, 160/255);
+        pbinimg = im2bw(pimage, 160/255);
         se = strel('disk',1);
         pbinimg = imopen(pbinimg,se);
+        
 
         % Level-set segmentation
-        pseg = lucas_chenvese(pimage, pbinimg, 150, false, 0.18*255^2, 6);
+        pseg = lucas_chenvese(pimage, pbinimg, 150, false, 1*255^2, 6);
+        pseg = imfill(pseg, 'holes');
 
         
         % Plot
         figure(5)
         subplot(2,3,1); imshow(I); title('Frame')
-        subplot(2,3,2); imshow(uint8(testpimage)); title('Test Prob Image')
-        subplot(2,3,3); imshow(uint8(pimage)); title('Probability Image')
+        subplot(2,3,3); imshow(pimage); title('Probability Image')
         subplot(2,3,4); imshow(pbinimg); title('Threshold')
         subplot(2,3,5); imshow(pseg); title('Level-set segmentation')
          
@@ -463,15 +501,36 @@ for i = 1:size(recGlottis,1)
             objwidth = max(horproj) - min(horproj);
             objheight = max(vertproj) - min(vertproj);
             objctr = mean(horproj);
+            
+            roiborder = bwboundaries(roimask);
+            roiborder = cell2mat(roiborder(1));
+            touches_roi = check_out_of_bounds([objr objc], roiborder, 'roi');
 
             outofrange = (objctr > pmax - prevwidth*0.15) | (objctr < pmin + prevwidth*0.15);
             toobig = (objwidth > objheight) && (objwidth > prevwidth);
-            toosmall = (length(objr) < 5) || (length(objr) < length(rg)/10);
+            toosmall = (length(objr) < 5);% || (length(objr) < length(rg)/10);
+            toowide = objwidth > 2*objheight;
             
-            val = outofrange || toosmall || toobig;
+            val = outofrange || toosmall || toobig || touches_roi || toowide;
             if val
                 obj = (labels == j);
                 pseg = pseg & ~obj;
+            end
+            
+            if touches_roi
+                fprintf('GRA %d: Roi collision\n', j);
+            end
+            if outofrange
+                fprintf('GRA %d: Out of range\n', j);
+            end
+            if toosmall 
+                fprintf('GRA %d: Too small\n', j);
+            end
+            if toobig 
+                fprintf('GRA %d: Too big\n', j);
+            end
+            if toowide
+                fprintf('GRA %d: Too wide\n', j);
             end
 
             newproj(j,:) = {horproj, vertproj, ~val};
@@ -487,9 +546,9 @@ for i = 1:size(recGlottis,1)
         
         
         
-        %%%%%%%%%%%%%%%%%
-        %%%% SAVE DATA %%
-        %%%%%%%%%%%%%%%%%
+        %%%%%%%%%%%%%%%%%%%
+        %%%% SAVE DATA %%%%
+        %%%%%%%%%%%%%%%%%%%
         
         glotborders = bwboundaries(pseg);
         
@@ -508,6 +567,8 @@ for i = 1:size(recGlottis,1)
             vidFrame(m,n,3) = 0;
         end
         
+        % Format: Col1 -> y, Col2 -> x
+        outputContours(curframe) = {fliplr(ctr)};
         segvideo(curframe) = {vidFrame};
         
         
@@ -650,7 +711,12 @@ for i = 1:length(segvideo)
 end
 close(myVideo);
 
+save(strcat('Output_contours\', vidName, '.mat'), 'outputContours');
+
 toc
+
+
+end
 
     
     

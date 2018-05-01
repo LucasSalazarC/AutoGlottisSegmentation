@@ -37,7 +37,7 @@ function GND = getGND(I, Ibin, B, idxlow, idxhigh)
 
     % Calculo de Color medio ponderado por distancia
     sigma  = 20;
-    wsize = 2;
+    wsize = 1;
     GND = zeros(1,8);
     
     % Matriz (casi) gaussiana

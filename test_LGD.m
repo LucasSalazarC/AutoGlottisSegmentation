@@ -1,59 +1,29 @@
-%% Thresholding
 
-%Img = imread('vocal_cords3.jpg');
-Img = s(1).cdata;
-Img = rgb2gray(Img);
+load('test\lgd_testdata2.mat');
 
-threshframe = im2bw(Img, 30/255);
-threshframe = imcomplement(threshframe);
-%threshframe = pbinimg;
+% Get variables
+B = bestB;
+Img = rgb2gray(s(i).cdata);
+%numIter = 300;
 
-% Apertura
-se = strel('disk',2);
-openedframe = imopen(threshframe,se);
-
-figure(1)
-hold off
-image(openedframe)
-axis image
-colormap(gray(2))
-title('Apertura')
-hold on
-
-% Bordes
-[allBorders,~] = bwboundaries(openedframe, 'noholes');
-B = allBorders{5};              % Clockwise order
-B = flipud(B);                  % Counterclockwise
-B = fliplr(B);                  % x -> columna 1, y -> columna 2
-plot(B(:,1), B(:,2), 'r*', 'MarkerSize', 1)
-
-glottis = false(size(openedframe));
+binShape = false(size(Img));
 for i = 1:length(B)
-    glottis(B(i,2), B(i,1)) = true;
+    binShape(B(i,2), B(i,1)) = true;
 end
-glottis = imfill(glottis, 'holes');
-% figure(3)
-% image(glottis)
-% colormap(gray(2))
-% title('Glotis')
-
-glottis = imcomplement(glottis);
-glottis = double(glottis);
+binShape = imfill(binShape, 'holes');
+binShape = imcomplement(binShape);
+binShape = double(binShape);
 
 c0 = 4;
-phi = 2*c0*glottis - c0;
+phi = 2*c0*binShape - c0;
 
-
-%% LGD Algorithm
-
-%Img=imread('vocal_cords2.jpg');
 Img = double(Img(:,:,1));
 
 NumIter = 1000; %iterations
-timestep=1; %time step
-mu=0.2/timestep;% level set regularization term, please refer to "Chunming Li and et al. Level Set Evolution Without Re-initialization: A New Variational Formulation, CVPR 2005"
+timestep=0.5; %time step
+mu=0.15/timestep;% level set regularization term, please refer to "Chunming Li and et al. Level Set Evolution Without Re-initialization: A New Variational Formulation, CVPR 2005"
 sigma = 2.5;%size of kernel
-epsilon = 0.7;
+epsilon = 0.6;
 %c0 = 2; % the constant value 
 lambda1=1;%outer weight, please refer to "Chunming Li and et al,  Minimization of Region-Scalable Fitting Energy for Image Segmentation, IEEE Trans. Image Processing, vol. 17 (10), pp. 1940-1949, 2008"
 lambda2=1;%inner weight
@@ -61,14 +31,6 @@ lambda2=1;%inner weight
 %if lambda1<lambda2; tend to deflate
 nu = 0.001*255*255;%length term
 alf = 30;%data term weight
-
-
-%figure,imagesc(uint8(Img),[0 255]),colormap(gray),axis off;axis equal
-[Height Wide] = size(Img);
-[xx yy] = meshgrid(1:Wide,1:Height);
-%phi = (sqrt(((xx - 65).^2 + (yy - 40).^2 )) - 20);
-%phi = sign(phi).*c0;
-
 
 Ksigma=fspecial('gaussian',round(2*sigma)*2 + 1,sigma); %  kernel
 ONE=ones(size(Img));
@@ -108,7 +70,7 @@ for iter = 1:NumIter
         pause(0.02);
     end
     
-    if meanareastd == 0
+    if meanareastd < 0.5
         c = contourc(phi, [0 0]);
         c = transpose(c);
         

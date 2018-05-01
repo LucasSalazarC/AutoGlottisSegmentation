@@ -17,7 +17,14 @@ im2 = imfill(im2, 'holes');
 
 intersection = im1 & im2;
 
-dice = 2*sum(sum(intersection)) / ( sum(sum(im1)) + sum(sum(im2)) );
-area_error = abs( sum(sum(im1)) - sum(sum(im2)) ) / ( sum(sum(im1)) + sum(sum(im2)) );
+den = sum(sum(im1)) + sum(sum(im2));
+if den == 0
+    dice = 1;
+    area_error = 0;
+else
+    dice = 2*sum(sum(intersection)) / den;
+    area_error = abs( sum(sum(im1)) - sum(sum(im2)) ) / den;
+end
+
 end
 

@@ -22,10 +22,10 @@ phi = 2*c0*binShape - c0;
 
 Img = double(Img(:,:,1));
 
-timestep=1; %time step
-mu=0.2/timestep;% level set regularization term, please refer to "Chunming Li and et al. Level Set Evolution Without Re-initialization: A New Variational Formulation, CVPR 2005"
+timestep=0.5; %time step
+mu=0.15/timestep;% level set regularization term, please refer to "Chunming Li and et al. Level Set Evolution Without Re-initialization: A New Variational Formulation, CVPR 2005"
 sigma = 2.5;%size of kernel
-epsilon = 0.7;
+epsilon = 0.6;
 %c0 = 2; % the constant value 
 lambda1=1;%outer weight, please refer to "Chunming Li and et al,  Minimization of Region-Scalable Fitting Energy for Image Segmentation, IEEE Trans. Image Processing, vol. 17 (10), pp. 1940-1949, 2008"
 lambda2=1;%inner weight

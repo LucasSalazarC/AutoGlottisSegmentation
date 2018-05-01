@@ -1,40 +1,25 @@
 
-imgList =  ["fn1.jpg", "fn1_crop.png"; ...
-            "fn2.jpg", "fn2_crop.png"; ...
-            "fn4.jpg", "fn4_crop.jpg"; ...
-            "fn5.jpg", "fn5_crop.png"; ...
-            "fp2.jpg", "fp2_crop.png"; ...
-            "fp3.jpg", "fp3_crop.png"; ...
-            "fp5.jpg", "fp5_crop.png";];
+% Loads borderData. 
+% Col 1 -> Border in counterclockwise order. First column is x, second column is y.
+% Col 2 -> Image
+% Col 3 -> Video name
+load('training_data\borders_and_images.mat');
         
 N = 30;
-FDmatrix = zeros(length(imgList),N);
-GNDmatrix = zeros(length(imgList),8);
+FDmatrix = zeros(size(borderData,1),N);
+GNDmatrix = zeros(size(borderData,1),8);
 
 figure(1)
 hold off
-for i = 1:length(imgList)
-    % Imagen completa
-    I = imread(char("Images\" + imgList(i,1)));
-    
-    % Leer y binarizar imagen segmentada
-    Iseg = imread(char("Images\" + imgList(i,2)));
-    Iseg = rgb2gray(Iseg);
-    thr = graythresh(Iseg);
-    Ibin = im2bw(Iseg, thr);
-    
+for i = 1:length(borderData(:,1))
     
     %% DESCRIPTORES DE FOURIER
-    
-    % Bordes
-    B = bwboundaries(Ibin);
-    B = B{2};                       % Clockwise order
-    B = flipud(B);                  % Counterclockwise
-    B = fliplr(B);                  % x -> columna 1, y -> columna 2
+
+    border = cell2mat(borderData(i,1));
 
     % Calcular y guardar Descriptores de Fourier. Los indices idxlow e
     % idxhigh se usaran en el GND
-    [FD,idxlow,idxhigh] = fourierDescriptors(B,N);
+    [FD,idxlow,idxhigh] = fourierDescriptors(border,N);
     FDmatrix(i,:) = FD;
     Brec = ifft(FD);
 
@@ -51,7 +36,19 @@ for i = 1:length(imgList)
     
     
     %% GND: GLOTTAL NEIGHBORHOOD DESCRIPTOR
-    GND = getGND(I, Ibin, B, idxlow, idxhigh);
+    
+    % Full image
+    I = cell2mat(borderData(i,2));
+    
+    % Create binary image
+    sz = size(I);
+    Ibin = false(sz(1:2));
+    for j = 1:size(border,1)
+        Ibin( border(j,2), border(j,1) ) = true;
+    end
+    Ibin = imfill(Ibin, 'holes');
+    
+    GND = getGND(I, Ibin, border, idxlow, idxhigh);
     g = sprintf('%f ', GND);
     fprintf('GND %d: %s\n', i, g);
     GNDmatrix(i,:) = GND;
@@ -72,28 +69,26 @@ end
 coef = coef(:,1:2);
 decomp = (GNDmatrix * coef);
 
-% % Histograma con gaussian kernel smoothing
-% extend = [300 300];
-% xi = round(min(decomp(:,1)) - extend(1));
-% xf = round(max(decomp(:,1)) + extend(1));
-% yi = round(min(decomp(:,2)) - extend(2));
-% yf = round(max(decomp(:,2)) + extend(2));
-% step = 2;
-% xaxis = xi:step:xf;
-% yaxis = yi:step:yf;
-% 
-% xbw = 60;
-% ybw = 90;
-% 
-% 
-% [X,Y] = meshgrid(xaxis, yaxis);
-% gndhisto = zeros(size(X));
-% for i = 1:length(decomp)
-%     kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
-%     gndhisto = gndhisto + kernel;
-% end
-figure(3)
-ksdensity(decomp);
+% Histograma con gaussian kernel smoothing
+extend = [150 150];
+xi = round(min(decomp(:,1)) - extend(1));
+xf = round(max(decomp(:,1)) + extend(1));
+yi = round(min(decomp(:,2)) - extend(2));
+yf = round(max(decomp(:,2)) + extend(2));
+step = 2;
+xaxis = xi:step:xf;
+yaxis = yi:step:yf;
+
+xbw = 60;
+ybw = 90;
+
+tic
+[X,Y] = meshgrid(xaxis, yaxis);
+gndhisto = zeros(size(X));
+for i = 1:length(decomp)
+    kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
+    gndhisto = gndhisto + kernel;
+end
 
 % Normalizar y graficar
 gndhisto = gndhisto / max(max(gndhisto));
@@ -102,12 +97,25 @@ mesh(X,Y,gndhisto)
 axis normal
 xlabel('X: Componente 1')
 ylabel('Y: Componente 2')
+toc
+
+tic
+% Attempt to use ksdensity function
+figure(3)
+points = combvec(xaxis,yaxis)';
+[f,xi] = ksdensity(decomp, points);
+[r,c] = size(X);
+gndhisto = vec2mat(f,c);
+gndhisto = gndhisto / max(max(gndhisto));
+mesh(X,Y,gndhisto)
+title('ksdensity')
+toc
 
 % Se guardan los descriptores de Fourier. Respecto a los GND, se guarda el
 % histograma generado (ejes + valores en z) y  los coeficientes pca para
 % poder proyectar las muestras.
 
-%save('training_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
 
 
 

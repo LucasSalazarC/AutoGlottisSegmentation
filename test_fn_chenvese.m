@@ -117,7 +117,7 @@ for n=1:num_iter
     L = im2double(P(:,:,1)); % get one image component
     c1 = sum(sum(L.*Heaviside2(phi0)))/(length(inidx)+eps); % average inside of Phi0
     c2 = sum(sum(L.*(1-Heaviside2(phi0))))/(length(outidx)+eps); % verage outside of Phi0
-    force_image=-(L-c1).^2+(L-c2).^2+force_image; 
+    force_image=-(L-c1).^2+(L-c2).^2+force_image;
     % sum Image Force on all components (used for vector image)
     % if 'chan' is applied, this loop become one sigle code as a
     % result of layer = 1
@@ -240,6 +240,7 @@ function showphi(I, phi, i)
         contour(phi_{2}, [0 0], 'x','LineWidth',1.3);
     end
     hold off; 
+    axis normal
     title([num2str(i) ' Iterations']); 
     drawnow;
     

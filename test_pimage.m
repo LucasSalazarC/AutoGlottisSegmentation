@@ -2,7 +2,7 @@
 %%%% PROBABILITY IMAGE %%
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-load('testing_data\pimage_testdata_FN003.mat');
+load('test\pimage_testdata_new_FN002_lombard.mat');
 
 % shape: Binary image. Glottis are zeros, the rest are ones
 % border: coordinates of the border; (x,y)
@@ -20,7 +20,7 @@ vecmap = 0:255;
 vecmap = vecmap';
 vecmap(:,2) = floor(vecmap(:,1)/quantize);
 
-npoints = 3;
+npoints = 6;
 filtsigma = 3;
 [histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
 bpoints = cell2mat(histos(:,1));
@@ -51,23 +51,51 @@ for j = 1:length(rpts)
         bglike = trilinear_interp2(color, histobg, vecmap);
         glotlike = trilinear_interp2(color, histoglot, vecmap);
     end
+    
+    if bglike < 0
+        bglike = 0;
+    end
 
-    pglot = glotprobs(idx)^2;
-    pbg = 1 - pglot;
-%     pglot = 0.5;
-%     pbg = 0.5;
+%     pglot = glotprobs(idx);
+%     pbg = 1 - pglot;
+    pglot = 0.5;
+    pbg = 0.5;
 
     postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
-    pimage(rpts(j,2), rpts(j,1)) = postprob * 255;
+    if postprob < 0
+        pimage(rpts(j,2), rpts(j,1)) = 0;
+    else
+        pimage(rpts(j,2), rpts(j,1)) = postprob * 255;
+    end
     
     testprobs(j) = postprob;
 end
 toc
 
+pimage = uint8(pimage);
+
 figure(10)
-subplot(1,3,1), image(uint8(pimage)); title('Probability Image')
+subplot(1,3,1), image(pimage); title('Probability Image'); colormap(gray(255));
 subplot(1,3,2), image(I)
 subplot(1,3,3), hold off, image(s(prevframe).cdata), hold on, plot(bpoints(:,1), bpoints(:,2), 'y*', 'MarkerSize', 1)
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%% LEVEL-SET SEGMENTATION %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+pbinimg = im2bw(pimage, 160.0/255);
+se = strel('disk',1);
+pbinimg = imopen(pbinimg,se);
+
+% Level-set segmentation
+pseg = test_fn_chenvese(pimage, pbinimg, 150, false, 1.2*255^2, 6);
+
+% figure(5)
+% subplot(2,2,1); image(I); title('Frame')
+% subplot(2,2,2); image(pimage); title('Probability Image'); colormap(gray(255))
+% subplot(2,2,3); imshow(pbinimg); title('Threshold')
+% subplot(2,2,4); imshow(pseg); title('Level-set segmentation')
 
 %% Plot filtered histogram level-set
 

@@ -51,7 +51,12 @@ Btr = circshift(Btr, 1-idxlow, 1);
 
 % Calcular descriptores de fourier
 imB = Btr(:,1) + 1i*Btr(:,2);           % Convertir a imaginario
-FD = fft(imB);                      % Descriptor de Fourier
+if length(imB) < N
+    FD = fft(imB,N);                      % Descriptor de Fourier
+else
+    FD = fft(imB);                      % Descriptor de Fourier
+end
+
 FD(1) = 0;                          % Invarianza a traslacion
 FD = FD / abs(FD(2));               % Invarianza a escala
 
