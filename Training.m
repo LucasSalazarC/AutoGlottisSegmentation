@@ -79,8 +79,8 @@ step = 2;
 xaxis = xi:step:xf;
 yaxis = yi:step:yf;
 
-xbw = 60;
-ybw = 90;
+xbw = 80;
+ybw = 180;
 
 tic
 [X,Y] = meshgrid(xaxis, yaxis);
@@ -99,23 +99,23 @@ xlabel('X: Componente 1')
 ylabel('Y: Componente 2')
 toc
 
-tic
-% Attempt to use ksdensity function
-figure(3)
-points = combvec(xaxis,yaxis)';
-[f,xi] = ksdensity(decomp, points);
-[r,c] = size(X);
-gndhisto = vec2mat(f,c);
-gndhisto = gndhisto / max(max(gndhisto));
-mesh(X,Y,gndhisto)
-title('ksdensity')
-toc
+% tic
+% % Attempt to use ksdensity function
+% figure(3)
+% points = combvec(xaxis,yaxis)';
+% [f,xi] = ksdensity(decomp, points);
+% [r,c] = size(X);
+% gndhisto = vec2mat(f,c);
+% gndhisto = gndhisto / max(max(gndhisto));
+% mesh(X,Y,gndhisto)
+% title('ksdensity')
+% toc
 
 % Se guardan los descriptores de Fourier. Respecto a los GND, se guarda el
 % histograma generado (ejes + valores en z) y  los coeficientes pca para
 % poder proyectar las muestras.
 
-save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+% save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
 
 
 

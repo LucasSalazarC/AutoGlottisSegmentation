@@ -1,6 +1,6 @@
 vidList = {'FN003', 'FN007', 'FP007', 'FP016', 'FN003_naso', 'FP005_naso', 'FP011_naso', 'FD003_pre', 'FN003_lombard', 'MN003_adapt'};
 
-evaluationData = cell(length(vidList),3);
+evaluationData = cell(length(vidList),5);
 
 for j = 1:length(vidList)
     vidName = cell2mat(vidList(j));
@@ -18,7 +18,10 @@ for j = 1:length(vidList)
     load(strcat('manual_segmentation\',vidName,'.mat'));
 
     frames = cell2mat(correctBorders(end,2)) + 44;
+    
+    tic
     [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef);
+    time = toc;
 
     dice_arr = [];
     areaerror_arr = [];
@@ -35,10 +38,13 @@ for j = 1:length(vidList)
 
     evaluationData(j,2) = {dice_arr};
     evaluationData(j,3) = {areaerror_arr};
+    evaluationData(j,4) = {time};
+    evaluationData(j,5) = {time/frames};
 
     fprintf('Video: %s\n', vidName);
     fprintf('Mean Dice Coefficient = %f\n', mean(dice_arr));
     fprintf('Mean Area Error = %f\n', mean(areaerror_arr));
+    fprintf('Elapsed Time = %0.4f seconds; Per frame = %0.4f seconds\n', time, time/frames);
 end
 
 currDateTime = datestr(datetime);
@@ -65,7 +71,10 @@ for i = 1:size(evaluationData,1)
     for j = 1:length(areaErrors)
         fprintf('%0.4f ', areaErrors(j));
     end
-    fprintf('\n\n');
+    fprintf('\n');
+    
+    fprintf('Elapsed Time = %0.4f seconds; Per frame = %0.4f seconds\n', cell2mat(evaluationData(i,4)), cell2mat(evaluationData(i,5)));
+    fprintf('\n');
 end
 
 
