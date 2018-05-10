@@ -9,18 +9,30 @@ id = 'MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame';
 warning('off', id);
 
 % Open and read video data
-vidName = 'FN001';
-vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
+vidName = 'FN003';
+if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
+    vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
+else
+    vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
+end
 vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 % Folder to save segmentation data
-destFolder = 'training_data\';
+destFolder = 'manual_segmentation\';
 
-% To save final segmentation data
-correctBorders = {};
+% Check if segmentation data already exists
+if exist( strcat(destFolder, vidName, '.mat'), 'file' ) == 2
+    load( strcat(destFolder, vidName, '.mat') );
+    correctBorders
+else
+    % To save final segmentation data
+    correctBorders = {};
+end
+
+
 
 % States
 sDrawing = 1;
@@ -36,6 +48,7 @@ ekey = 101;
 dkey = 100;
 akey = 97;
 gkey = 103;
+bkey = 98;
 key1 = 49;
 key9 = 57;
 lclick = 1;
@@ -47,9 +60,6 @@ button = NaN;
 
 % Plot zoom level
 zlevel = 1;
-
-% Count how many frames have been segmented
-frameCounter = 0;
 
 % Read video data
 k = 1;
@@ -103,12 +113,31 @@ while true
     % Indicates whether to save current frame or not
     saveFlag = false;
     
+    % Sets direction in which to advance. Forward by default
+    backFlag = false;
+    
     % Initial state
     state = sDrawing;
     
     % Reset zoom variables
     zoom_scale = 1.5;
     zlevel = 1;
+    
+    % Check if currect frame has already been segmented
+    alreadySegmented = false;
+    if ~isempty(correctBorders)
+        frameIdxs = cell2mat(correctBorders(:,2));
+        idxInArray = find(frameIdxs == k);
+        
+        % Draw boder if it exists
+        if ~isempty(idxInArray)
+            alreadySegmented = true;
+            currBorder = cell2mat(correctBorders(idxInArray,1));
+            if ~isempty(currBorder)
+                plot(currBorder(:,1), currBorder(:,2), 'y*', 'MarkerSize', 4*zlevel)
+            end
+        end
+    end
 
     while true
         [x,y,button] = ginput(1);
@@ -169,6 +198,15 @@ while true
                 fprintf('Save flag set!\n');
             else
                 fprintf('Save flag unset!\n');
+            end
+        
+        % Backwards flag
+        elseif button == bkey
+            backFlag = ~backFlag;
+            if backFlag
+                fprintf('Going backwards!\n');
+            else
+                fprintf('Going forward!\n');
             end
         end
             
@@ -408,6 +446,11 @@ while true
     
     if button == rkey  % Redo image
         fprintf('Redoing frame %d\n', k);
+        
+        % Erase border if it exists
+        if alreadySegmented
+            correctBorders(idxInArray,:) = [];
+        end
         continue
         
     else
@@ -423,22 +466,37 @@ while true
         end
         
         if saveFlag
-            frameCounter = frameCounter + 1;
-            correctBorders(frameCounter,:) = {fullborder, k};
+            correctBorders(end+1,:) = {fullborder, k};
         end
         
 
         if button >= key1 && button <= key9     % Skip N images
             % Convert to number value
             button = button - key1 + 1;
-            if saveFlag
-                fprintf('Frame %d saved; %d in total. Advancing %d frames\n', k, frameCounter, button);
+            L = size(correctBorders,1);
+            if ~backFlag
+                if saveFlag
+                    fprintf('Frame %d saved; %d in total. Advancing %d frames to frame %d\n', k, L, button, k+button);
+                else
+                    fprintf('Frame %d skipped; %d in total. Advancing %d frames to frame %d\n', k, L, button, k+button);
+                end
+            
+                k = k + button;
             else
-                fprintf('Frame %d skipped; %d in total. Advancing %d frames\n', k, frameCounter, button);
+                if saveFlag
+                    fprintf('Frame %d saved; %d in total. Going back %d frames to frame %d\n', k, L, min([button k-1]), max([k-button 1]));
+                else
+                    fprintf('Frame %d skipped; %d in total. Going back %d frames to frame %d\n', k, L, min([button k-1]), max([k-button 1]));
+                end
+                
+                k = k - button;
+                if k < 1
+                    k = 1;
+                end
             end
-            k = k + button;
+            
         elseif button == enterkey   % End here
-            fprintf('Segmentation ended by user. %d frames were saved\n\n', frameCounter);
+            fprintf('Segmentation ended by user. %d frames were saved\n\n', L);
             break
         end
     end
@@ -449,14 +507,16 @@ if button ~= enterkey
 end
 
 if ~isempty(correctBorders)
-    %save(strcat(destFolder, vidName, '.mat'), 'correctBorders');
+    correctBorders = sortrows(correctBorders, 2)
+    save(strcat(destFolder, vidName, '.mat'), 'correctBorders');
 end
 
-% figure(2)
-% plot(fullborder(:,1), fullborder(:,2), 'b*')
-% axis ij
-% axis equal
-
+% if exist('fullborder', 'var')
+%     figure(2)
+%     plot(fullborder(:,1), fullborder(:,2), 'b*')
+%     axis ij
+%     axis equal
+% end
 
 
 

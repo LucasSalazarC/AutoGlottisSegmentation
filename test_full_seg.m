@@ -1,4 +1,5 @@
-function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef)
+
+load('training_data\trained_data.mat');
 
 % Inputs:
 %   frames -> Numero de cuadros a segmentar
@@ -10,8 +11,12 @@ function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDma
 
 
 %% Open and read video data
-% vidName = 'FN002_adapt';
-% vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
+vidName = 'FN003';
+if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
+    vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
+else
+    vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
+end
 vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
@@ -20,9 +25,9 @@ s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 vidSize = [vidHeight vidWidth];
 
 k = 1;
-startTime = 0;
+startTime = 1.1;
 vidObj.CurrentTime = startTime;
-endTime = startTime + frames/vidObj.FrameRate;
+endTime = startTime + 0.2;
 while vidObj.CurrentTime <= endTime
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
@@ -225,7 +230,6 @@ end
 
 if isempty(recGlottis)
     fprintf('Algorithm failed. No glottis found\n');
-    outputContours = cell(frames,1);
     return
 end
 
@@ -242,7 +246,7 @@ frameflag = false(length(s), 1);
 
 % To save video frames
 segvideo = cell(length(s),1);
-outputContours = cell(frames,1);
+outputContours = cell(length(s),1);
 
 % Sort by FD dissimilarity
 recGlottis = sortrows(recGlottis, 4);
@@ -333,18 +337,15 @@ for i = 1:size(recGlottis,1)
                 % Use biggest segmented border as glottis region
                 % NEED TO FIX THIS LATER
                 % What if there is more than one object?
-%                 bmax = 0;
-%                 for j = 1:length(glotborders)
-%                     temp = glotborders{j};
-%                     if length(temp) > bmax
-%                         border = temp;
-%                         bmax = length(temp);
-%                     end
-%                 end
-%                 border = fliplr(border);
-                
-                % border is in format (x,y)
-                border = ctr;
+                bmax = 0;
+                for j = 1:length(glotborders)
+                    temp = glotborders{j};
+                    if length(temp) > bmax
+                        border = temp;
+                        bmax = length(temp);
+                    end
+                end
+                border = fliplr(border);
                 if ~ispolycw(border(:,1), border(:,2))
                     border = flipud(border);
                 end
@@ -435,8 +436,8 @@ for i = 1:size(recGlottis,1)
             %%%% PROBABILITY IMAGE %%
             %%%%%%%%%%%%%%%%%%%%%%%%%
 
-%             % Save data for further testing
-%             save(char("test\pimage_testdata_new_" + vidName + ".mat"));
+            % Save data for further testing
+%             save(char("test\pimage_testdata_new_" + vidName + "_2.mat"));
 
             % Calcular histograma 3d para 8 puntos en el borde
             % Mapping to quantize colors
@@ -477,8 +478,10 @@ for i = 1:size(recGlottis,1)
                     bglike = 0;
                 end
 
-                pglot = 0.4;
-                pbg = 0.6;
+%                 pglot = glotprobs(idx);
+%                 pbg = 1 - pglot;
+                pglot = 0.5;
+                pbg = 0.5;
 
                 postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
                 if postprob < 0
@@ -489,8 +492,8 @@ for i = 1:size(recGlottis,1)
             end
 
             pimage = uint8(pimage);
-%             figure(10)
-%             image(pimage); title('Probability Image'); colormap(gray(255));
+            figure(10)
+            image(pimage); title('Probability Image'); colormap(gray(255));
 
 
 
@@ -499,6 +502,9 @@ for i = 1:size(recGlottis,1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%%% LEVEL-SET SEGMENTATION %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            
+%             % Save data for further testing
+%             save(char("test\levelset_testdata_" + vidName + ".mat"));
 
             pbinimg = im2bw(pimage, 220/255);
             se = strel('disk',1);
@@ -560,7 +566,7 @@ for i = 1:size(recGlottis,1)
 
                 outofrange = (objctr > pmax - prevwidth*0.15) | (objctr < pmin + prevwidth*0.15);
                 toobig = (objwidth > objheight) && (objwidth > prevwidth);
-                toosmall = (length(objr) < 10);
+                toosmall = (length(objr) < 10);% || (length(objr) < length(rg)/10);
                 toowide = objwidth > 2*objheight;
 
                 val = outofrange || toosmall || toobig || touches_roi || toowide;
@@ -618,11 +624,9 @@ for i = 1:size(recGlottis,1)
                 vidFrame(m,n,2) = 255;
                 vidFrame(m,n,3) = 0;
             end
-            
-            ctr = fliplr(ctr);
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
-            outputContours(curframe) = {ctr};
+            outputContours(curframe) = {fliplr(ctr)};
             segvideo(curframe) = {vidFrame};
 
 
@@ -777,7 +781,6 @@ close(myVideo);
 save(strcat('Output_contours\', vidName, '.mat'), 'outputContours');
 
 
-end
 
     
     
