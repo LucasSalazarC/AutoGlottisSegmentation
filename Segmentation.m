@@ -7,11 +7,12 @@ function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDma
 %   xaxis -> Eje x del histograma (primera componente)
 %   yaxis -> Eje y del histograma (segunda componente)
 %   coef -> Coeficientes PCA para reducir dimensionalidad de GND
+%   normalize -> Boolean. Whether to normalize image histograms or not.
+
+% 13/05/2018: Added normalization
 
 
 %% Open and read video data
-% vidName = 'FN002_adapt';
-% vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
 vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
@@ -34,14 +35,15 @@ end
 
 [nImages,~] = size(FDmatrix);       % Number of training images
 
-fdthresh = 0.32;        % Fourier Descriptor Dissimilarity threshold
+fdthresh = 0.42;        % Fourier Descriptor Dissimilarity threshold
 gndthresh = 0.7;        % GND threshold
 
 % Find maximum x-value for probability > gndthresh
 for i = size(gndhisto,2):-1:1
     colmax = max(gndhisto(:,i));
     
-    if colmax >= gndthresh
+%     if colmax >= gndthresh
+    if colmax >= 0.9    
         break
     end
 end
@@ -63,14 +65,45 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
+    
+    % Remove black areas on the edges of the video
+    blackMask = im2bw(s(i).cdata, 15/255);
+    blackMask = imcomplement(blackMask);
+
+    se = strel('disk', 1);
+    blackMask = imdilate(blackMask, se);
+
+    allBorders = bwboundaries(blackMask);
+    for k = 1:length(allBorders)
+        B = allBorders{k};              % Clockwise order
+        B = fliplr(B);                  % x -> columna 1, y -> columna 2
+
+        % Filter shapes not touching the edge of the image
+        if check_out_of_bounds(B, vidSize, 'image')
+            continue
+        end
+
+        objectMask = false(vidSize);
+        for j = 1:length(B)
+            objectMask( B(j,2), B(j,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+
+        blackMask = blackMask & ~objectMask;
+    end
+    
+    
+    % Normalize image
+    normFrame = normalizeimg(s(i).cdata);
+    
 %     % For testing purposes
 %     figure(20)
-%     image(s(i).cdata)
+%     image(normFrame)
 %     hold on
     
     % Umbral aumenta de 1 hasta 80. Se buscan figuras con forma de glotis
     for j = 1:80
-        threshframe = im2bw(s(i).cdata, j/255);
+        threshframe = im2bw(normFrame, j/255);
         threshframe = imcomplement(threshframe);
 
         % Apertura
@@ -91,15 +124,21 @@ for i = 1:length(s)
             if length(B) < 30 || length(B) > 500 || check_out_of_bounds(B, size(openedframe), 'image')
                 continue
             end
-         
+            
+            objectMask = false(vidSize);
+            for n = 1:length(B)
+                objectMask( B(n,2), B(n,1) ) = true;
+            end
+            objectMask = imfill(objectMask, 'holes');
+            
+            % Filter shapes touching the black area at the edge of the image
+            if sum(sum( blackMask & objectMask )) > 0
+                continue
+            end
+            
+            
             % Calcular descriptores de fourier
             [FD,idxlow,idxhigh] = fourierDescriptors(B,30);
-            
-%             Brec = ifft(FD);
-%             plot(real(Brec),imag(Brec))
-%             hold on
-%             axis ij
-%             axis equal
             
             % Comparar con los FD de entrenamiento (norma de la diferencia
             % al cuadrado)
@@ -109,27 +148,32 @@ for i = 1:length(s)
             end
             normMean = normMean / nImages;
             
-            if normMean < bestDsim
+%             if normMean < bestDsim
+%                 thrindex = j;
+%                 bestDsim = normMean;
+%                 bestB = B;
+%             end
+            
+            if normMean < fdthresh
                 thrindex = j;
                 bestDsim = normMean;
                 bestB = B;
+%                 % For testing purposes
+%                 fprintf('T = %d; B %d; FDsim = %f; L = %d\n', j, k, normMean, length(B));
+%                 plot(B(:,1), B(:,2), 'y*', 'Markersize', 0.5)
+%                 waitforbuttonpress
+%                 unplot
+                break
             end
-            
-%             % For testing purposes
-%             fprintf('T = %d; B %d; FDsim = %f; L = %d\n', j, k, normMean, length(B));
-%             plot(B(:,1), B(:,2), 'y*', 'Markersize', 0.5)
-%             waitforbuttonpress
-%             unplot
         end
         
         % Evaluar potenciales bordes, si es que hay
-%         if bindex ~= 0
-%             fprintf('Potencial borde de glotis encontrado!\n');
-%             break
-%         end
+        if thrindex ~= 0
+            break
+        end
     end
     
-    if thrindex(1) == 0 || bestDsim > fdthresh
+    if thrindex == 0% || bestDsim > fdthresh
         fprintf('No se encontraron potenciales bordes de glotis en este cuadro\n\n');
     else      
         fprintf('Potencial borde de glotis encontrado!\n');
@@ -137,7 +181,7 @@ for i = 1:length(s)
         
         figure(1)
         hold off
-        image(s(i).cdata)
+        image(normFrame)
         axis image
         
         hold on
@@ -149,7 +193,7 @@ for i = 1:length(s)
         
         % Aplicar algoritmo de ajuste de contorno
         fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
+        c = contourLGD(bestB, rgb2gray(normFrame), 350);       % Variable c es el contorno
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
         % Border must be in counterclockwise order. Y axis is inverted, so we negate the output of
@@ -190,7 +234,7 @@ for i = 1:length(s)
             
             % Calcular y descomponer GND con coeficientes PCA del
             % entrenamiento. Luego mapear a histograma
-            GND = getGND(s(i).cdata, binShape, round(c), idxlow, idxhigh);
+            GND = getGND(normFrame, binShape, round(c), idxlow, idxhigh);
             decomp = GND * coef
             
             % decomp(1) is approximately the norm of average intensity difference between the inside
@@ -447,7 +491,7 @@ for i = 1:size(recGlottis,1)
 
             npoints = 6;
             filtsigma = 3;
-            [histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
+            [histos, ~, ~,~,~] = colorhist2(normalizeimg(s(prevframe).cdata), shape, border, roimask, vecmap, npoints, filtsigma);
             bpoints = cell2mat(histos(:,1));
 
             % Closest base points for each ROI point
@@ -455,7 +499,7 @@ for i = 1:size(recGlottis,1)
             idxs = dsearchn(bpoints, rpts);
 
             % Calculate probability image
-            I = s(curframe).cdata;
+            I = normalizeimg(s(curframe).cdata);
             pimage = zeros(size(shape));
             for j = 1:length(rpts)
                 color = double(reshape(I(rpts(j,2),rpts(j,1),:),1,3))/quantize;

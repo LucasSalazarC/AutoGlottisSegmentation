@@ -3,7 +3,7 @@ files = dir('training_data');
 borderData = {};
 for i = 1:length(files)
     i
-    if ~files(i).isdir && contains(files(i).name,'.mat') && ~isequal(files(i).name, 'borders_and_images.mat') && ~isequal(files(i).name, 'trained_data.mat')
+    if ~files(i).isdir && contains(files(i).name,'.mat') && ~isequal(files(i).name, 'borders_and_images.mat') && ~isequal(files(i).name, 'trained_data.mat') && ~isequal(files(i).name, 'old_trained_data.mat')
         load(strcat('training_data\', files(i).name));
         
         vidName = strsplit(files(i).name, '.');
@@ -23,7 +23,9 @@ for i = 1:length(files)
         end
         
         borderData(end+1,1) = { cell2mat(correctBorders(1,1))};
-        borderData(end,2) = { s(k).cdata };
+        
+        % 13/05/2018: Added normalization
+        borderData(end,2) = { normalizeimg(s(k).cdata) };           
         borderData(end,3) = { vidName };
         clear correctBorders
     end
