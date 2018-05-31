@@ -34,14 +34,15 @@ end
 
 [nImages,~] = size(FDmatrix);       % Number of training images
 
-fdthresh = 0.32;        % Fourier Descriptor Dissimilarity threshold
-gndthresh = 0.7;        % GND threshold
+fdthresh = 6;        % Fourier Descriptor Dissimilarity threshold
+gndthresh = 0.4;        % GND threshold
+roithresh = 0.6;
 
 % Find maximum x-value for probability > gndthresh
 for i = size(gndhisto,2):-1:1
     colmax = max(gndhisto(:,i));
     
-    if colmax >= gndthresh
+    if colmax >= 0.99
         break
     end
 end
@@ -55,6 +56,14 @@ waitsm = 0;
 waitlg = 0;
 waitseg = 0;
 
+% Get ROI based in pixel variance over 100 frames
+[initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s);
+notInRoi = imcomplement(initialRoiMask);
+
+figure(8), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
+plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
+
+
 for i = 1:length(s)
     fprintf('\n-----------------------------------------------\n----------------------------------------------\n');
     fprintf('Analizando cuadro %d\n', i);
@@ -63,8 +72,34 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
+    % Remove black areas on the edges of the video
+    blackMask = im2bw(s(i).cdata, 15/255);
+    blackMask = imcomplement(blackMask);
+
+    se = strel('disk', 1);
+    blackMask = imdilate(blackMask, se);
+
+    allBorders = bwboundaries(blackMask);
+    for k = 1:length(allBorders)
+        B = allBorders{k};              % Clockwise order
+        B = fliplr(B);                  % x -> columna 1, y -> columna 2
+
+        % Filter shapes not touching the edge of the image
+        if check_out_of_bounds(B, vidSize, 'image')
+            continue
+        end
+
+        objectMask = false(vidSize);
+        for j = 1:length(B)
+            objectMask( B(j,2), B(j,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+
+        blackMask = blackMask & ~objectMask;
+    end
+    
 %     % For testing purposes
-%     figure(20)
+%     figure(21)
 %     image(s(i).cdata)
 %     hold on
     
@@ -91,15 +126,36 @@ for i = 1:length(s)
             if length(B) < 30 || length(B) > 500 || check_out_of_bounds(B, size(openedframe), 'image')
                 continue
             end
+
+            
+            objectMask = false(vidSize);
+            for n = 1:length(B)
+                objectMask( B(n,2), B(n,1) ) = true;
+            end
+            objectMask = imfill(objectMask, 'holes');
+            
+%             % Object centroid
+%             [objR, objC] = find(objectMask == 1);
+%             objCentroid = round(mean([objR objC]));
+            
+            objOverlap = sum(sum( roiObj & objectMask ));
+            newObjSize = sum(sum(objectMask));
+
+%             fprintf('NewObj overlap = %f, RoiObj overlap = %f\n', objOverlap/newObjSize, objOverlap/roiObjSize);
+
+            % Filter objects not completely inside ROI mask or whose overlap with ROI
+            % object is not high
+            if objOverlap / newObjSize < roithresh || sum(sum( notInRoi & objectMask )) > 0
+                continue
+            end
+            
+            % Filter shapes touching the black area at the edge of the image
+            if sum(sum( blackMask & objectMask )) > 0
+                continue
+            end
          
             % Calcular descriptores de fourier
-            [FD,idxlow,idxhigh] = fourierDescriptors(B,30);
-            
-%             Brec = ifft(FD);
-%             plot(real(Brec),imag(Brec))
-%             hold on
-%             axis ij
-%             axis equal
+            [FD,~,~] = fourierDescriptors(B,30);
             
             % Comparar con los FD de entrenamiento (norma de la diferencia
             % al cuadrado)
@@ -162,6 +218,23 @@ for i = 1:length(s)
         if length(c) < 30
             fprintf('False Region. Algorithm continues...\n\n');
             pause(waitsm);
+            continue
+        end
+        
+        objectMask = false(vidSize);
+        cRound = round(c);
+        for n = 1:length(cRound)
+            objectMask( cRound(n,2), cRound(n,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+        
+        objOverlap = sum(sum( roiObj & objectMask ));
+        newObjSize = sum(sum(objectMask));
+
+        % Filter objects not completely inside ROI mask or whose overlap with ROI
+        % object is not high
+        if objOverlap / newObjSize < roithresh || sum(sum( notInRoi & objectMask )) > 0
+            fprintf('Not in ROI. False Region\n');
             continue
         end
         
@@ -447,7 +520,7 @@ for i = 1:size(recGlottis,1)
 
             npoints = 6;
             filtsigma = 3;
-            [histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
+            [histos, ~, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
             bpoints = cell2mat(histos(:,1));
 
             % Closest base points for each ROI point
