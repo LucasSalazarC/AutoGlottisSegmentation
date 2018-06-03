@@ -49,11 +49,11 @@ end
 
 currDateTime = datestr(datetime);
 currDateTime(regexp(currDateTime,'[:]')) = [];
-save(strcat('Output_contours\', currDateTime, '.mat'), 'evaluationData');
+save(strcat('Output_contours\master_', currDateTime, '.mat'), 'evaluationData');
 
 %% Pretty Print
 
-fileID = fopen(strcat('Output_contours\', currDateTime, '.txt'), 'w');
+fileID = fopen(strcat('Output_contours\master_', currDateTime, '.txt'), 'w');
 fprintf('----------------------------------------------------------------------------------------\n\n');
 fprintf('Dice coefficients and Area Error:\n\n');
 fprintf(fileID, 'Dice coefficients and Area Error:\n\n');
