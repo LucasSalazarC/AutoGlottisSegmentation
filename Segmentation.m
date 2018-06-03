@@ -63,6 +63,32 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
+    % Remove black areas on the edges of the video
+    blackMask = im2bw(s(i).cdata, 15/255);
+    blackMask = imcomplement(blackMask);
+
+    se = strel('disk', 1);
+    blackMask = imdilate(blackMask, se);
+
+    allBorders = bwboundaries(blackMask);
+    for k = 1:length(allBorders)
+        B = allBorders{k};              % Clockwise order
+        B = fliplr(B);                  % x -> columna 1, y -> columna 2
+
+        % Filter shapes not touching the edge of the image
+        if check_out_of_bounds(B, vidSize, 'image')
+            continue
+        end
+
+        objectMask = false(vidSize);
+        for j = 1:length(B)
+            objectMask( B(j,2), B(j,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+
+        blackMask = blackMask & ~objectMask;
+    end
+    
 %     % For testing purposes
 %     figure(20)
 %     image(s(i).cdata)
@@ -89,6 +115,17 @@ for i = 1:length(s)
 
             % Filter shapes too small, too big, or touching the edge of the image
             if length(B) < 30 || length(B) > 500 || check_out_of_bounds(B, size(openedframe), 'image')
+                continue
+            end
+            
+            objectMask = false(vidSize);
+            for n = 1:length(B)
+                objectMask( B(n,2), B(n,1) ) = true;
+            end
+            objectMask = imfill(objectMask, 'holes');
+            
+            % Filter shapes touching the black area at the edge of the image
+            if sum(sum( blackMask & objectMask )) > 0
                 continue
             end
          
@@ -622,6 +659,7 @@ for i = 1:size(recGlottis,1)
             ctr = fliplr(ctr);
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
+            % outputContour format: [x,y]
             outputContours(curframe) = {ctr};
             segvideo(curframe) = {vidFrame};
 
