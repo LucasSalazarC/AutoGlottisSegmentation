@@ -1,5 +1,6 @@
 test/
 Output_videos/
+Output_contours/
 Chan-Vese/
 LGD_source_code/
 Photron_MRAW_read_function/
