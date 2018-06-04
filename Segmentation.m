@@ -56,13 +56,6 @@ waitsm = 0;
 waitlg = 0;
 waitseg = 0;
 
-% Get ROI based in pixel variance over 100 frames
-[initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s);
-notInRoi = imcomplement(initialRoiMask);
-
-figure(8), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
-plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
-
 
 for i = 1:length(s)
     fprintf('\n-----------------------------------------------\n----------------------------------------------\n');
@@ -71,6 +64,17 @@ for i = 1:length(s)
     % Para guardar indice del potencial borde de glotis
     thrindex = 0;
     bestDsim = inf;
+    
+    
+    % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
+    if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
+        [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1);
+        notInRoi = imcomplement(initialRoiMask);
+
+        figure(9), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
+        plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
+    end
+    
     
     % Remove black areas on the edges of the video
     blackMask = im2bw(s(i).cdata, 15/255);
@@ -203,9 +207,37 @@ for i = 1:length(s)
 %         % Testing purposes
 %         save('test\lgd_testdata2.mat');
         
-        % Aplicar algoritmo de ajuste de contorno
+        % format [y,x]
+        roiMinCoord = min(initialRoiBorder);
+        roiMaxCoord = max(initialRoiBorder);
+
+        origImage = rgb2gray(s(i).cdata);
+        
+        % Crop image to ROI
+        lgdImage = origImage(roiMinCoord(1):roiMaxCoord(1),roiMinCoord(2):roiMaxCoord(2));
+
+        % Change coordinates to cropped image
+        bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
+        bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
+        
+        % Apply contour adjusting algorithm
         fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
+        c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
+        
+        % Return to original coordinates
+        c(:,1) = c(:,1) + roiMinCoord(2) - 1;
+        c(:,2) = c(:,2) + roiMinCoord(1) - 1;
+        
+        % Fitler out of bounds
+        if check_out_of_bounds(c, size(lgdImage), 'image')
+            fprintf('Not in ROI; Out of bounds. False Region\n');
+            continue
+        end
+        
+%         % Apply contour adjusting algorithm
+%         fprintf('Ajustando contorno...\n');
+%         c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
+        
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
         % Border must be in counterclockwise order. Y axis is inverted, so we negate the output of

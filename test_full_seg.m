@@ -11,7 +11,7 @@ load('training_data\trained_data.mat');
 
 
 %% Open and read video data
-vidName = 'FN003';
+vidName = 'FN001';
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
 else
@@ -24,10 +24,12 @@ s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 vidSize = [vidHeight vidWidth];
 
+frames = 44;
+
 k = 1;
-startTime = 1.1;
+startTime = 0;
 vidObj.CurrentTime = startTime;
-endTime = startTime + 0.2;
+endTime = startTime + + frames/vidObj.FrameRate;
 while vidObj.CurrentTime <= endTime
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
@@ -39,14 +41,15 @@ end
 
 [nImages,~] = size(FDmatrix);       % Number of training images
 
-fdthresh = 0.32;        % Fourier Descriptor Dissimilarity threshold
-gndthresh = 0.7;        % GND threshold
+fdthresh = 6;        % Fourier Descriptor Dissimilarity threshold
+gndthresh = 0.4;        % GND threshold
+roithresh = 0.6;
 
 % Find maximum x-value for probability > gndthresh
 for i = size(gndhisto,2):-1:1
     colmax = max(gndhisto(:,i));
     
-    if colmax >= gndthresh
+    if colmax >= 0.99
         break
     end
 end
@@ -68,8 +71,44 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
+    % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
+    if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
+        [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1);
+        notInRoi = imcomplement(initialRoiMask);
+
+        figure(9), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
+        plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
+    end
+        
+    
+    % Remove black areas on the edges of the video
+    blackMask = im2bw(s(i).cdata, 15/255);
+    blackMask = imcomplement(blackMask);
+
+    se = strel('disk', 1);
+    blackMask = imdilate(blackMask, se);
+
+    allBorders = bwboundaries(blackMask);
+    for k = 1:length(allBorders)
+        B = allBorders{k};              % Clockwise order
+        B = fliplr(B);                  % x -> columna 1, y -> columna 2
+
+        % Filter shapes not touching the edge of the image
+        if check_out_of_bounds(B, vidSize, 'image')
+            continue
+        end
+
+        objectMask = false(vidSize);
+        for j = 1:length(B)
+            objectMask( B(j,2), B(j,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+
+        blackMask = blackMask & ~objectMask;
+    end
+    
 %     % For testing purposes
-%     figure(20)
+%     figure(21)
 %     image(s(i).cdata)
 %     hold on
     
@@ -96,15 +135,36 @@ for i = 1:length(s)
             if length(B) < 30 || length(B) > 500 || check_out_of_bounds(B, size(openedframe), 'image')
                 continue
             end
+
+            
+            objectMask = false(vidSize);
+            for n = 1:length(B)
+                objectMask( B(n,2), B(n,1) ) = true;
+            end
+            objectMask = imfill(objectMask, 'holes');
+            
+%             % Object centroid
+%             [objR, objC] = find(objectMask == 1);
+%             objCentroid = round(mean([objR objC]));
+            
+            objOverlap = sum(sum( roiObj & objectMask ));
+            newObjSize = sum(sum(objectMask));
+
+%             fprintf('NewObj overlap = %f, RoiObj overlap = %f\n', objOverlap/newObjSize, objOverlap/roiObjSize);
+
+            % Filter objects not completely inside ROI mask or whose overlap with ROI
+            % object is not high
+            if objOverlap / newObjSize < roithresh || sum(sum( notInRoi & objectMask )) > 0
+                continue
+            end
+            
+            % Filter shapes touching the black area at the edge of the image
+            if sum(sum( blackMask & objectMask )) > 0
+                continue
+            end
          
             % Calcular descriptores de fourier
-            [FD,idxlow,idxhigh] = fourierDescriptors(B,30);
-            
-%             Brec = ifft(FD);
-%             plot(real(Brec),imag(Brec))
-%             hold on
-%             axis ij
-%             axis equal
+            [FD,~,~] = fourierDescriptors(B,30);
             
             % Comparar con los FD de entrenamiento (norma de la diferencia
             % al cuadrado)
@@ -150,11 +210,28 @@ for i = 1:length(s)
         pause(waitlg);
         
 %         % Testing purposes
-%         save('test\lgd_testdata2.mat');
+%         save('test\lgd_testdata.mat');
+
+        % format [y,x]
+        roiMinCoord = min(initialRoiBorder);
+        roiMaxCoord = max(initialRoiBorder);
+
+        origImage = rgb2gray(s(i).cdata);
+        
+        % Cropped image
+        lgdImage = origImage(roiMinCoord(1):roiMaxCoord(1),roiMinCoord(2):roiMaxCoord(2));
+
+        % Change coordinates to cropped image
+        bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
+        bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
         
         % Aplicar algoritmo de ajuste de contorno
         fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
+        c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
+        
+        % Return to original coordinates
+        c(:,1) = c(:,1) + roiMinCoord(2) - 1;
+        c(:,2) = c(:,2) + roiMinCoord(1) - 1;
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
         % Border must be in counterclockwise order. Y axis is inverted, so we negate the output of
@@ -167,6 +244,23 @@ for i = 1:length(s)
         if length(c) < 30
             fprintf('False Region. Algorithm continues...\n\n');
             pause(waitsm);
+            continue
+        end
+        
+        objectMask = false(vidSize);
+        cRound = round(c);
+        for n = 1:length(cRound)
+            objectMask( cRound(n,2), cRound(n,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+        
+        objOverlap = sum(sum( roiObj & objectMask ));
+        newObjSize = sum(sum(objectMask));
+
+        % Filter objects not completely inside ROI mask or whose overlap with ROI
+        % object is not high
+        if objOverlap / newObjSize < roithresh || sum(sum( notInRoi & objectMask )) > 0
+            fprintf('Not in ROI. False Region\n');
             continue
         end
         
@@ -230,6 +324,7 @@ end
 
 if isempty(recGlottis)
     fprintf('Algorithm failed. No glottis found\n');
+    outputContours = cell(frames,1);
     return
 end
 
@@ -246,7 +341,7 @@ frameflag = false(length(s), 1);
 
 % To save video frames
 segvideo = cell(length(s),1);
-outputContours = cell(length(s),1);
+outputContours = cell(frames,1);
 
 % Sort by FD dissimilarity
 recGlottis = sortrows(recGlottis, 4);
@@ -337,15 +432,18 @@ for i = 1:size(recGlottis,1)
                 % Use biggest segmented border as glottis region
                 % NEED TO FIX THIS LATER
                 % What if there is more than one object?
-                bmax = 0;
-                for j = 1:length(glotborders)
-                    temp = glotborders{j};
-                    if length(temp) > bmax
-                        border = temp;
-                        bmax = length(temp);
-                    end
-                end
-                border = fliplr(border);
+%                 bmax = 0;
+%                 for j = 1:length(glotborders)
+%                     temp = glotborders{j};
+%                     if length(temp) > bmax
+%                         border = temp;
+%                         bmax = length(temp);
+%                     end
+%                 end
+%                 border = fliplr(border);
+                
+                % border is in format (x,y)
+                border = ctr;
                 if ~ispolycw(border(:,1), border(:,2))
                     border = flipud(border);
                 end
@@ -436,8 +534,8 @@ for i = 1:size(recGlottis,1)
             %%%% PROBABILITY IMAGE %%
             %%%%%%%%%%%%%%%%%%%%%%%%%
 
-            % Save data for further testing
-%             save(char("test\pimage_testdata_new_" + vidName + "_2.mat"));
+%             % Save data for further testing
+%             save(char("test\pimage_testdata_new_" + vidName + ".mat"));
 
             % Calcular histograma 3d para 8 puntos en el borde
             % Mapping to quantize colors
@@ -448,7 +546,7 @@ for i = 1:size(recGlottis,1)
 
             npoints = 6;
             filtsigma = 3;
-            [histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
+            [histos, ~, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
             bpoints = cell2mat(histos(:,1));
 
             % Closest base points for each ROI point
@@ -478,10 +576,8 @@ for i = 1:size(recGlottis,1)
                     bglike = 0;
                 end
 
-%                 pglot = glotprobs(idx);
-%                 pbg = 1 - pglot;
-                pglot = 0.5;
-                pbg = 0.5;
+                pglot = 0.4;
+                pbg = 0.6;
 
                 postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
                 if postprob < 0
@@ -492,8 +588,8 @@ for i = 1:size(recGlottis,1)
             end
 
             pimage = uint8(pimage);
-            figure(10)
-            image(pimage); title('Probability Image'); colormap(gray(255));
+%             figure(10)
+%             image(pimage); title('Probability Image'); colormap(gray(255));
 
 
 
@@ -502,9 +598,6 @@ for i = 1:size(recGlottis,1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%%% LEVEL-SET SEGMENTATION %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            
-%             % Save data for further testing
-%             save(char("test\levelset_testdata_" + vidName + ".mat"));
 
             pbinimg = im2bw(pimage, 220/255);
             se = strel('disk',1);
@@ -566,7 +659,7 @@ for i = 1:size(recGlottis,1)
 
                 outofrange = (objctr > pmax - prevwidth*0.15) | (objctr < pmin + prevwidth*0.15);
                 toobig = (objwidth > objheight) && (objwidth > prevwidth);
-                toosmall = (length(objr) < 10);% || (length(objr) < length(rg)/10);
+                toosmall = (length(objr) < 10);
                 toowide = objwidth > 2*objheight;
 
                 val = outofrange || toosmall || toobig || touches_roi || toowide;
@@ -624,9 +717,11 @@ for i = 1:size(recGlottis,1)
                 vidFrame(m,n,2) = 255;
                 vidFrame(m,n,3) = 0;
             end
+            
+            ctr = fliplr(ctr);
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
-            outputContours(curframe) = {fliplr(ctr)};
+            outputContours(curframe) = {ctr};
             segvideo(curframe) = {vidFrame};
 
 
@@ -766,7 +861,7 @@ fprintf('Finished!\n\n');
 
 
 %myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\seg_', vidObj.Name), 'Uncompressed AVI');
+myVideo = VideoWriter(strcat('Output_videos\variance_roi_seg_', vidObj.Name), 'Uncompressed AVI');
 myVideo.FrameRate = 30;
 open(myVideo);
 for i = 1:length(segvideo)
@@ -778,7 +873,7 @@ for i = 1:length(segvideo)
 end
 close(myVideo);
 
-save(strcat('Output_contours\', vidName, '.mat'), 'outputContours');
+save(strcat('Output_contours\variance_roi_', vidName, '.mat'), 'outputContours');
 
 
 

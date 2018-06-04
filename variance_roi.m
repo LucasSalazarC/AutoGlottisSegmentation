@@ -1,13 +1,14 @@
-function [ roiImg, roiBorder, roiObj ] = variance_roi( vidStruct )
+function [ roiImg, roiBorder, roiObj ] = variance_roi( vidStruct, startFrame )
 
 % Returns a binary image where 1 is inside the ROI
 
-L = 100;
-if L > length(vidStruct)
-    L = length(vidStruct);
+if startFrame + 99 > length(vidStruct)
+    endFrame = length(vidStruct);
+else
+    endFrame = startFrame + 99;
 end
 
-for k = 1:L
+for k = startFrame:endFrame
     s(:,:,k) = rgb2gray(vidStruct(k).cdata);         % Cuadros del video (imagenes)
 end
 
