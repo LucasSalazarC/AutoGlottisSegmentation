@@ -552,7 +552,7 @@ for i = 1:size(recGlottis,1)
 
             npoints = 6;
             filtsigma = 3;
-            [histos, ~, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
+            [histos, ~, ~,~,~] = colorhist2(normalizeimg(s(prevframe).cdata), shape, border, roimask, vecmap, npoints, filtsigma);
             bpoints = cell2mat(histos(:,1));
 
             % Closest base points for each ROI point
@@ -560,7 +560,7 @@ for i = 1:size(recGlottis,1)
             idxs = dsearchn(bpoints, rpts);
 
             % Calculate probability image
-            I = s(curframe).cdata;
+            I = normalizeimg(s(curframe).cdata);
             pimage = zeros(size(shape));
             for j = 1:length(rpts)
                 color = double(reshape(I(rpts(j,2),rpts(j,1),:),1,3))/quantize;
@@ -867,7 +867,7 @@ fprintf('Finished!\n\n');
 
 
 %myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\variance_roi_seg_', vidObj.Name), 'Uncompressed AVI');
+myVideo = VideoWriter(strcat('Output_videos\roi_norm_seg_', vidObj.Name), 'Uncompressed AVI');
 myVideo.FrameRate = 30;
 open(myVideo);
 for i = 1:length(segvideo)
@@ -879,7 +879,7 @@ for i = 1:length(segvideo)
 end
 close(myVideo);
 
-save(strcat('Output_contours\variance_roi_', vidName, '.mat'), 'outputContours');
+save(strcat('Output_contours\roi_norm_', vidName, '.mat'), 'outputContours');
 
 
 end
