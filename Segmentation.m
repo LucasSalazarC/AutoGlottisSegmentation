@@ -35,7 +35,7 @@ end
 
 [nImages,~] = size(FDmatrix);       % Number of training images
 
-fdthresh = 0.42;        % Fourier Descriptor Dissimilarity threshold
+fdthresh = 0.32;        % Fourier Descriptor Dissimilarity threshold
 gndthresh = 0.7;        % GND threshold
 
 % Find maximum x-value for probability > gndthresh
