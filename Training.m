@@ -83,7 +83,7 @@ yaxis = yi:step:yf;
 % ybw = 120;
 % 
 % tic
-% [X,Y] = meshgrid(xaxis, yaxis);
+[X,Y] = meshgrid(xaxis, yaxis);
 % gndhisto = zeros(size(X));
 % for i = 1:length(decomp)
 %     kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
@@ -101,7 +101,7 @@ yaxis = yi:step:yf;
 
 % tic
 % Attempt to use ksdensity function
-figure(3)
+figure(4)
 points = combvec(xaxis,yaxis)';
 [f,xi] = ksdensity(decomp, points);
 [r,c] = size(X);
@@ -115,7 +115,7 @@ title('ksdensity')
 % histograma generado (ejes + valores en z) y  los coeficientes pca para
 % poder proyectar las muestras.
 
-% save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
 
 
 

@@ -148,32 +148,33 @@ for i = 1:length(s)
             end
             normMean = normMean / nImages;
             
-%             if normMean < bestDsim
-%                 thrindex = j;
-%                 bestDsim = normMean;
-%                 bestB = B;
-%             end
-            
-            if normMean < fdthresh
+            if normMean < bestDsim
                 thrindex = j;
                 bestDsim = normMean;
                 bestB = B;
+            end
+            
+%             if normMean < fdthresh
+%                 thrindex = j;
+%                 bestDsim = normMean;
+%                 bestB = B;
+
 %                 % For testing purposes
 %                 fprintf('T = %d; B %d; FDsim = %f; L = %d\n', j, k, normMean, length(B));
 %                 plot(B(:,1), B(:,2), 'y*', 'Markersize', 0.5)
 %                 waitforbuttonpress
 %                 unplot
-                break
-            end
+%                 break
+%             end
         end
         
-        % Evaluar potenciales bordes, si es que hay
-        if thrindex ~= 0
-            break
-        end
+%         % Evaluar potenciales bordes, si es que hay
+%         if thrindex ~= 0
+%             break
+%         end
     end
     
-    if thrindex == 0% || bestDsim > fdthresh
+    if thrindex == 0 || bestDsim > fdthresh
         fprintf('No se encontraron potenciales bordes de glotis en este cuadro\n\n');
     else      
         fprintf('Potencial borde de glotis encontrado!\n');
