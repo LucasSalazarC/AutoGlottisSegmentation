@@ -79,36 +79,36 @@ step = 2;
 xaxis = xi:step:xf;
 yaxis = yi:step:yf;
 
-% xbw = 80;
-% ybw = 120;
-% 
-% tic
+xbw = 80;
+ybw = 180;
+
+tic
 [X,Y] = meshgrid(xaxis, yaxis);
-% gndhisto = zeros(size(X));
-% for i = 1:length(decomp)
-%     kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
-%     gndhisto = gndhisto + kernel;
-% end
-% 
-% % Normalizar y graficar
-% gndhisto = gndhisto / max(max(gndhisto));
-% figure(2)
-% mesh(X,Y,gndhisto)
-% axis normal
-% xlabel('X: Componente 1')
-% ylabel('Y: Componente 2')
-% toc
+gndhisto = zeros(size(X));
+for i = 1:length(decomp)
+    kernel = exp(-1*( (X-decomp(i,1)).^2/(2*xbw^2) + (Y-decomp(i,2)).^2/(2*ybw^2) ));
+    gndhisto = gndhisto + kernel;
+end
+
+% Normalizar y graficar
+gndhisto = gndhisto / max(max(gndhisto));
+figure(2)
+mesh(X,Y,gndhisto)
+axis normal
+xlabel('X: Componente 1')
+ylabel('Y: Componente 2')
+toc
 
 % tic
 % Attempt to use ksdensity function
-figure(4)
-points = combvec(xaxis,yaxis)';
-[f,xi] = ksdensity(decomp, points);
-[r,c] = size(X);
-gndhisto = vec2mat(f,c);
-gndhisto = gndhisto / max(max(gndhisto));
-mesh(X,Y,gndhisto)
-title('ksdensity')
+% figure(4)
+% points = combvec(xaxis,yaxis)';
+% [f,xi] = ksdensity(decomp, points);
+% [r,c] = size(X);
+% gndhisto = vec2mat(f,c);
+% gndhisto = gndhisto / max(max(gndhisto));
+% mesh(X,Y,gndhisto)
+% title('ksdensity')
 % toc
 
 % Se guardan los descriptores de Fourier. Respecto a los GND, se guarda el

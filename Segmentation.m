@@ -94,6 +94,7 @@ for i = 1:length(s)
     
     
     % Normalize image
+    origFrame = s(i).cdata;
     normFrame = normalizeimg(s(i).cdata);
     
 %     % For testing purposes
@@ -103,7 +104,7 @@ for i = 1:length(s)
     
     % Umbral aumenta de 1 hasta 80. Se buscan figuras con forma de glotis
     for j = 1:80
-        threshframe = im2bw(normFrame, j/255);
+        threshframe = im2bw(origFrame, j/255);
         threshframe = imcomplement(threshframe);
 
         % Apertura
@@ -182,7 +183,7 @@ for i = 1:length(s)
         
         figure(1)
         hold off
-        image(normFrame)
+        image(origFrame)
         axis image
         
         hold on
@@ -194,7 +195,7 @@ for i = 1:length(s)
         
         % Aplicar algoritmo de ajuste de contorno
         fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, rgb2gray(normFrame), 350);       % Variable c es el contorno
+        c = contourLGD(bestB, rgb2gray(origFrame), 350);       % Variable c es el contorno
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
         % Border must be in counterclockwise order. Y axis is inverted, so we negate the output of
@@ -228,14 +229,16 @@ for i = 1:length(s)
             % Generar imagen binaria con el contorno
             binShape = false(size(threshframe));
             for j = 1:length(c)
-                binShape(round(c(j,2)), round(c(j,1))) = true;
+                mb = max(1, round(c(j,2)) );
+                nb = max(1, round(c(j,1)) );
+                binShape(mb, nb) = true;
             end
             binShape = imfill(binShape, 'holes');
             binShape = imcomplement(binShape);
             
             % Calcular y descomponer GND con coeficientes PCA del
             % entrenamiento. Luego mapear a histograma
-            GND = getGND(normFrame, binShape, round(c), idxlow, idxhigh);
+            GND = getGND(origFrame, binShape, round(c), idxlow, idxhigh);
             decomp = GND * coef
             
             % decomp(1) is approximately the norm of average intensity difference between the inside

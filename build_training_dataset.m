@@ -25,7 +25,7 @@ for i = 1:length(files)
         borderData(end+1,1) = { cell2mat(correctBorders(1,1))};
         
         % 13/05/2018: Added normalization
-        borderData(end,2) = { normalizeimg(s(k).cdata) };           
+        borderData(end,2) = { s(k).cdata };           
         borderData(end,3) = { vidName };
         clear correctBorders
     end
