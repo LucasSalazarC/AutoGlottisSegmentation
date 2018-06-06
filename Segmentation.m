@@ -611,7 +611,7 @@ for i = 1:size(recGlottis,1)
 
 
             % Level-set segmentation
-            pseg = lucas_chenvese(pimage, pbinimg, 150, false, 1*255^2, 6);
+            pseg = lucas_chenvese(pimage, pbinimg, 300, false, 1*255^2, 6);
             pseg = imfill(pseg, 'holes');
 
 

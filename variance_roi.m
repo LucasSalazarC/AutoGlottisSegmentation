@@ -152,6 +152,9 @@ roiImg = imfill(roiImg, 'holes');
 roiBorder = bwboundaries(roiImg);
 roiBorder = roiBorder{1};
 
+% Make object convex
+roiObj = bwconvhull(roiObj);
+
 
 end
 
