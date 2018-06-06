@@ -599,19 +599,27 @@ for i = 1:size(recGlottis,1)
 
 
 
-
-
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%%% LEVEL-SET SEGMENTATION %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-            pbinimg = im2bw(pimage, 220/255);
+            pbinimg = im2bw(pimage, 200/255);
             se = strel('disk',1);
             pbinimg = imopen(pbinimg,se);
+            
+            % Remove objects touching the edge of the image
+            [labels, num] = bwlabel(pbinimg);
+            for j = 1:num
+                [objr, objc] = find(labels == j);
+                if check_out_of_bounds([objr objc], size(pbinimg), 'image')
+                    obj = (labels == j);
+                    pbinimg = pbinimg & ~obj;
+                end
+            end
 
 
             % Level-set segmentation
-            pseg = lucas_chenvese(pimage, pbinimg, 150, false, 1*255^2, 6);
+            pseg = lucas_chenvese(pimage, pbinimg, 300, false, 1*255^2, 6);
             pseg = imfill(pseg, 'holes');
 
 
