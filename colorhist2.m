@@ -1,7 +1,7 @@
-function [histos, glotprobs, bgcell, glotcell, testing] = colorhist2(I, shape, border, roimask, vecmap, L, filtsigma)
+function [histos, glotprobs, bgcell, glotcell, testing] = colorhist2(I, shape, border, roimask, L, filtsigma)
 % [histos, step] = colorhist(I, shape, border, roimask, idxlow, idxhigh)
 % 
-%  I: Imagen a color
+%  I: Grayscale image
 %  shape: Imagen binaria indicando zona de la glotis. 0 -> dentro de la
 %   glotis, 1 -> Fuera de la glotis
 %  border: Puntos del contorno de la glotis (matriz de 2 columnas)
@@ -19,39 +19,27 @@ bgcell = 0;
 glotcell = 0;
 testing = 0;
 
+N = 256;
 histos = cell(L,3);
 bpoints = linspace(1, length(border), L+1);
 bpoints = round(bpoints(1:end-1));
 
 % Calculo de Color medio ponderado por distancia
 sigma  = 40;
-wsize = 3;
+wsize = 2;
 
 % Matriz (casi) gaussiana
 [xf,yf] = meshgrid(-wsize*sigma:wsize*sigma, -wsize*sigma:wsize*sigma);
 gmatrix = exp(-1*(xf.^2 + yf.^2) / (2*sigma^2) );
 
-% 3d histogram variables
-N = vecmap(end,2) + 1;
-
-
 glotprobs = zeros(length(bpoints), 1);
 
-% % For scatter plot
-% bgcell = cell(length(bpoints), 1);
-% glotcell = cell(length(bpoints), 1);
-% 
-% testing = cell(length(bpoints), 1);
 
 for j = 1:length(bpoints)
-    histobg = zeros(N,N,N);
-    histoglot = zeros(N,N,N);
+    histobg = zeros(N,1);
+    histoglot = zeros(N,1);
     bgcount = 0;
     glotcount = 0;
-%     % For scatter plot
-%     bgdata = double.empty(0,4);
-%     glotdata = double.empty(0,4);
-%     testdata = double.empty(0,4);
     
     % Evaluar color solo en puntos dentro de un area cuadrada en torno al
     % punto base
@@ -66,36 +54,15 @@ for j = 1:length(bpoints)
             m_im = m + p(2);
             if n_im > 0 && n_im <= cols && m_im > 0 && m_im <= rows
                 if roimask(m_im,n_im)
-                    color = double(reshape(I(m_im,n_im,:),1,3)) + 1;
-                    r = vecmap(color(1), 2) + 1;
-                    g = vecmap(color(2), 2) + 1;
-                    b = vecmap(color(3), 2) + 1;
+                    pixInt = double(I(m_im,n_im)) + 1;
                     weight = gmatrix(m + wsize*sigma + 1, n + wsize*sigma + 1);
 
                     if shape(m_im,n_im)    % Outside glottis  
-                        histobg(r,g,b) = histobg(r,g,b) + weight;
+                        histobg(pixInt) = histobg(pixInt) + weight;
                         bgcount = bgcount + 1;
-
-    %                     % For scatter plot
-    %                     [exists, idx] = ismember([r g b], bgdata(:,1:3), 'rows');
-    %                     if exists
-    %                         bgdata(idx,4) = bgdata(idx,4) + weight;
-    %                     else
-    %                         bgdata(end+1,:) = [color weight];
-    %                     end
-    %                     
-    %                     testdata(end+1,:) = [color weight];
                     else            % Inside glottis
-                        histoglot(r,g,b) = histoglot(r,g,b) + weight;
+                        histoglot(pixInt) = histoglot(pixInt) + weight;
                         glotcount = glotcount + 1;
-
-    %                     % For scatter plot
-    %                     [exists, idx] = ismember(color, glotdata(:,1:3), 'rows');
-    %                     if exists
-    %                         glotdata(idx,4) = glotdata(idx,4) + weight;
-    %                     else
-    %                         glotdata(end+1,:) = [color weight];
-    %                     end
                     end
                 end
             end
@@ -104,20 +71,29 @@ for j = 1:length(bpoints)
     
     glotprobs(j) = glotcount / (bgcount+glotcount);
     
-    filtsize = 2*ceil(2*filtsigma) + 1;
-    histobg = imgaussfilt3(histobg, filtsigma, 'FilterSize', filtsize);
-    histoglot = imgaussfilt3(histoglot, filtsigma, 'FilterSize', filtsize);
-%     histobg = imboxfilt3(histobg, [filtsize filtsize filtsize]);
-%     histoglot = imboxfilt3(histoglot, [filtsize filtsize filtsize]);
+    smoothBgHisto = zeros(N,1);
+    smoothGlotHisto = zeros(N,1);
+    bw = 5;
+    X = transpose(1:N);
+    for i = 1:N
+        if histobg(i) == 0
+            continue
+        else
+            kernel = exp( -1*( (X-i).^2/(2*bw^2) ) ) * histobg(i);
+            smoothBgHisto = smoothBgHisto + kernel;
+        end
+    end
+    for i = 1:N
+        if histoglot(i) == 0
+            continue
+        else
+            kernel = exp( -1*( (X-i).^2/(2*bw^2) ) ) * histoglot(i);
+            smoothGlotHisto = smoothGlotHisto + kernel;
+        end
+    end
     
-%     histobg = histobg / max(max(max(histobg)));
-%     histoglot = histoglot / max(max(max(histoglot)));
-    
-    histos(j,:) = {p, histobg, histoglot};
-    
-%     bgcell(j) = {bgdata};
-%     glotcell(j) = {glotdata};
-%     testing(j) = {testdata};
+    histos(j,:) = {p, smoothBgHisto, smoothGlotHisto};
+
 end
 
 end

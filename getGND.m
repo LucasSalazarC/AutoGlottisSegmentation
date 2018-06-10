@@ -1,7 +1,7 @@
 function GND = getGND(I, Ibin, B, idxlow, idxhigh)
 % GND = newGND(I, Ibin, B, idxlow, idxhigh)
 % 
-%  I: Imagen a color
+%  I: Imagen en escala de grises
 %  Ibin: Imagen binaria indicando zona de la glotis. 0 -> dentro de la
 %   glotis, 1 -> Fuera de la glotis
 %  B: Puntos del contorno de la glotis (matriz de 2 columnas)
@@ -51,33 +51,33 @@ function GND = getGND(I, Ibin, B, idxlow, idxhigh)
         [rows,cols] = size(Ibin);
 
         % Calcular color medio ponderado por distancia 
-        intnum = zeros(3,1);
+        intnum = 0;
         intden = 0;
-        extnum = zeros(3,1);
+        extnum = 0;
         extden = 0;
         for n = -wsize*sigma:wsize*sigma
             for m = -wsize*sigma:wsize*sigma
                 n_im = n + p(1);
                 m_im = m + p(2);
                 if n_im > 0 && n_im <= cols && m_im > 0 && m_im <= rows
-                    color = double(reshape(I(m_im,n_im,:),3,1));
+                    pixInt = double(I(m_im,n_im));
                     weight = gmatrix(m + wsize*sigma + 1, n + wsize*sigma + 1);
 
                     if Ibin(m_im,n_im)    % Outside glottis   
-                        extnum = extnum + color*weight;
+                        extnum = extnum + pixInt*weight;
                         extden = extden + weight;
                     else            % Inside glottis
-                        intnum = intnum + color*weight;
+                        intnum = intnum + pixInt*weight;
                         intden = intden + weight;
                     end
                 end
             end
         end
 
-        extcolor = extnum / extden;
-        intcolor = intnum / intden;
+        externalInt = extnum / extden;
+        internalInt = intnum / intden;
 
-        GND(j) = norm(extcolor - intcolor);
+        GND(j) = abs(externalInt - internalInt);
     end
 
 end

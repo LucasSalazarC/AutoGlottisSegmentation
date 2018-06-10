@@ -49,11 +49,11 @@ end
 
 currDateTime = datestr(datetime);
 currDateTime(regexp(currDateTime,'[:]')) = [];
-save(strcat('Output_contours\variance_roi_', currDateTime, '.mat'), 'evaluationData');
+save(strcat('Output_contours\roi_nocolor_', currDateTime, '.mat'), 'evaluationData');
 
 %% Pretty Print
 
-fileID = fopen(strcat('Output_contours\variance_roi_', currDateTime, '.txt'), 'w');
+fileID = fopen(strcat('Output_contours\roi_nocolor_', currDateTime, '.txt'), 'w');
 fprintf('----------------------------------------------------------------------------------------\n\n');
 fprintf('Dice coefficients and Area Error:\n\n');
 fprintf(fileID, 'Dice coefficients and Area Error:\n\n');

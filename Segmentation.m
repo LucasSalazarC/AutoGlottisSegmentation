@@ -15,7 +15,7 @@ function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDma
 vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
-s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
+s = struct('cdata',zeros(vidHeight,vidWidth,1,'uint8'),'colormap',[]);
 
 vidSize = [vidHeight vidWidth];
 
@@ -65,19 +65,23 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
+    grayFrame = rgb2gray(s(i).cdata);
+    
     
     % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
     if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
         [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1);
         notInRoi = imcomplement(initialRoiMask);
 
-        figure(9), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
+        figure(9), imshow(imoverlay(grayFrame, roiObj, [0 1 0])), hold on
         plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
     end
     
     
+    
+    
     % Remove black areas on the edges of the video
-    blackMask = im2bw(s(i).cdata, 15/255);
+    blackMask = im2bw(grayFrame, 15/255);
     blackMask = imcomplement(blackMask);
 
     se = strel('disk', 1);
@@ -109,7 +113,7 @@ for i = 1:length(s)
     
     % Umbral aumenta de 1 hasta 80. Se buscan figuras con forma de glotis
     for j = 1:80
-        threshframe = im2bw(s(i).cdata, j/255);
+        threshframe = im2bw(grayFrame, j/255);
         threshframe = imcomplement(threshframe);
 
         % Apertura
@@ -197,7 +201,7 @@ for i = 1:length(s)
         
         figure(1)
         hold off
-        image(s(i).cdata)
+        image(grayFrame), colormap(gray(255))
         axis image
         
         hold on
@@ -236,7 +240,7 @@ for i = 1:length(s)
         
         % Apply contour adjusting algorithm
         fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
+        c = contourLGD(bestB, grayFrame, 350);       % Variable c es el contorno
         
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
@@ -295,7 +299,7 @@ for i = 1:length(s)
             
             % Calcular y descomponer GND con coeficientes PCA del
             % entrenamiento. Luego mapear a histograma
-            GND = getGND(s(i).cdata, binShape, round(c), idxlow, idxhigh);
+            GND = getGND(grayFrame, binShape, round(c), idxlow, idxhigh);
             decomp = GND * coef
             
             % decomp(1) is approximately the norm of average intensity difference between the inside
@@ -544,46 +548,40 @@ for i = 1:size(recGlottis,1)
 %             save(char("test\pimage_testdata_new_" + vidName + ".mat"));
 
             % Calcular histograma 3d para 8 puntos en el borde
-            % Mapping to quantize colors
-            quantize = 2;
-            vecmap = 0:255;
-            vecmap = vecmap';
-            vecmap(:,2) = floor(vecmap(:,1)/quantize);
 
-            npoints = 6;
+            npoints = 15;
             filtsigma = 3;
-            [histos, ~, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
+            [histos, ~, ~,~,~] = colorhist2(rgb2gray(s(prevframe).cdata), shape, border, roimask, npoints, filtsigma);
             bpoints = cell2mat(histos(:,1));
+            
+%             figure(76)
+%             plot(histos{1,2}), hold on
+%             plot(histos{1,3})
+%             waitforbuttonpress
 
             % Closest base points for each ROI point
             rpts = [rpts; [cg rg]];    % Ahora sí es la ROI entera, incluyendo glotis
             idxs = dsearchn(bpoints, rpts);
 
             % Calculate probability image
-            I = s(curframe).cdata;
+            I = rgb2gray(s(curframe).cdata);
             pimage = zeros(size(shape));
             for j = 1:length(rpts)
-                color = double(reshape(I(rpts(j,2),rpts(j,1),:),1,3))/quantize;
+                pixInt = double( I(rpts(j,2),rpts(j,1)) ) + 1;
                 idx = idxs(j);
 
                 histobg = cell2mat(histos(idx,2));
                 histoglot = cell2mat(histos(idx,3));
 
-                if quantize == 1
-                    color = color + 1;
-                    bglike = histobg(color(1), color(2), color(3));
-                    glotlike = histoglot(color(1), color(2), color(3));
-                else
-                    bglike = trilinear_interp2(color, histobg, vecmap);
-                    glotlike = trilinear_interp2(color, histoglot, vecmap);
-                end
+                bglike = histobg(pixInt);
+                glotlike = histoglot(pixInt);
 
                 if bglike < 0
                     bglike = 0;
                 end
 
                 pglot = 0.4;
-                pbg = 0.6;
+                pbg = 1 - pglot;
 
                 postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
                 if postprob < 0
@@ -593,11 +591,11 @@ for i = 1:size(recGlottis,1)
                 end
             end
 
-            pimage = uint8(pimage);
+%             pimage = uint8(pimage);
 %             figure(10)
 %             image(pimage); title('Probability Image'); colormap(gray(255));
-
-
+% 
+%             waitforbuttonpress
 
 
 
@@ -867,7 +865,7 @@ fprintf('Finished!\n\n');
 
 
 %myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\variance_roi_seg_', vidObj.Name), 'Uncompressed AVI');
+myVideo = VideoWriter(strcat('Output_videos\roi_nocolor_seg_', vidObj.Name), 'Uncompressed AVI');
 myVideo.FrameRate = 30;
 open(myVideo);
 for i = 1:length(segvideo)
@@ -879,7 +877,7 @@ for i = 1:length(segvideo)
 end
 close(myVideo);
 
-save(strcat('Output_contours\variance_roi_', vidName, '.mat'), 'outputContours');
+save(strcat('Output_contours\roi_nocolor_', vidName, '.mat'), 'outputContours');
 
 
 end

@@ -1,6 +1,6 @@
 %% Simpler case
 
-vidName = 'FN007_naso';
+vidName = 'FN001';
 
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';

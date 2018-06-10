@@ -15,11 +15,11 @@ for i = 1:length(files)
         end
         
         vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
-        s = struct('cdata', zeros(vidObj.Height, vidObj.Width, 3, 'uint8'), 'colormap', []);
+        s = struct('cdata', zeros(vidObj.Height, vidObj.Width, 1, 'uint8'), 'colormap', []);
 
         vidObj.CurrentTime = 0;
         for k = 1:cell2mat(correctBorders(1,2))
-            s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
+            s(k).cdata = rgb2gray(readFrame(vidObj));         % Cuadros del video (imagenes)
         end
         
         borderData(end+1,1) = { cell2mat(correctBorders(1,1))};
