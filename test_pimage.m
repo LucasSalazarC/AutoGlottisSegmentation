@@ -2,7 +2,7 @@
 %%%% PROBABILITY IMAGE %%
 %%%%%%%%%%%%%%%%%%%%%%%%%
 
-load('test\pimage_testdata_new_FN002_lombard.mat');
+load('test\pimage_testdata_new_FN001.mat');
 
 % shape: Binary image. Glottis are zeros, the rest are ones
 % border: coordinates of the border; (x,y)
@@ -15,14 +15,14 @@ load('test\pimage_testdata_new_FN002_lombard.mat');
 tic
 
 % Mapping to quantize colors
-quantize = 2;
+quantize = 1;
 vecmap = 0:255;
 vecmap = vecmap';
 vecmap(:,2) = floor(vecmap(:,1)/quantize);
 
 npoints = 6;
-filtsigma = 3;
-[histos, glotprobs, ~,~,~] = colorhist2(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
+filtsigma = 10;
+[histos, glotprobs, ~,~,~] = colorhist3(s(prevframe).cdata, shape, border, roimask, vecmap, npoints, filtsigma);
 bpoints = cell2mat(histos(:,1));
 toc
 tic
@@ -45,11 +45,11 @@ for j = 1:length(rpts)
 
     if quantize == 1
         color = color + 1;
-        bglike = histobg(color(1), color(2), color(3));
-        glotlike = histoglot(color(1), color(2), color(3));
+        bglike = histobg(color(2), color(1), color(3));
+        glotlike = histoglot(color(2), color(1), color(3));
     else
-        bglike = trilinear_interp2(color, histobg, vecmap);
-        glotlike = trilinear_interp2(color, histoglot, vecmap);
+        bglike = trilinear_interp3(color, histobg, vecmap);
+        glotlike = trilinear_interp3(color, histoglot, vecmap);
     end
     
     if bglike < 0
@@ -58,8 +58,8 @@ for j = 1:length(rpts)
 
 %     pglot = glotprobs(idx);
 %     pbg = 1 - pglot;
-    pglot = 0.5;
-    pbg = 0.5;
+    pglot = 0.4;
+    pbg = 0.6;
 
     postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
     if postprob < 0
@@ -74,28 +74,29 @@ toc
 
 pimage = uint8(pimage);
 
-figure(10)
-subplot(1,3,1), image(pimage); title('Probability Image'); colormap(gray(255));
-subplot(1,3,2), image(I)
-subplot(1,3,3), hold off, image(s(prevframe).cdata), hold on, plot(bpoints(:,1), bpoints(:,2), 'y*', 'MarkerSize', 1)
+% figure(10)
+% subplot(1,3,1), image(pimage); title('Probability Image'); colormap(gray(255));
+% subplot(1,3,2), image(I)
+% subplot(1,3,3), hold off, image(s(prevframe).cdata), hold on, plot(bpoints(:,1), bpoints(:,2), 'y*', 'MarkerSize', 1)
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%% LEVEL-SET SEGMENTATION %%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-pbinimg = im2bw(pimage, 160.0/255);
+pbinimg = im2bw(pimage, 220/255);
 se = strel('disk',1);
 pbinimg = imopen(pbinimg,se);
 
 % Level-set segmentation
-pseg = test_fn_chenvese(pimage, pbinimg, 150, false, 1.2*255^2, 6);
+pseg = lucas_chenvese(pimage, pbinimg, 300, false, 255^2, 6);
+pseg = imfill(pseg, 'holes');
 
-% figure(5)
-% subplot(2,2,1); image(I); title('Frame')
-% subplot(2,2,2); image(pimage); title('Probability Image'); colormap(gray(255))
-% subplot(2,2,3); imshow(pbinimg); title('Threshold')
-% subplot(2,2,4); imshow(pseg); title('Level-set segmentation')
+figure(6)
+subplot(2,2,1); image(I); title('Frame')
+subplot(2,2,2); image(pimage); title('Probability Image'); colormap(gray(255))
+subplot(2,2,3); imshow(pbinimg); title('Threshold')
+subplot(2,2,4); imshow(pseg); title('Level-set segmentation')
 
 %% Plot filtered histogram level-set
 

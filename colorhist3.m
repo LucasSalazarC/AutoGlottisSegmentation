@@ -1,4 +1,4 @@
-function [histos, glotprobs, bgcell, glotcell, testing] = colorhist3(I, shape, border, roimask, vecmap, L, ~)
+function [histos, glotprobs, bgcell, glotcell, testing] = colorhist3(I, shape, border, roimask, vecmap, npoints, kHalfSize)
 % [histos, step] = colorhist(I, shape, border, roimask, idxlow, idxhigh)
 % 
 %  I: Imagen a color
@@ -19,12 +19,12 @@ bgcell = 0;
 glotcell = 0;
 testing = 0;
 
-histos = cell(L,3);
-bpoints = linspace(1, length(border), L+1);
+histos = cell(npoints,3);
+bpoints = linspace(1, length(border), npoints+1);
 bpoints = round(bpoints(1:end-1));
 
 % Calculo de Color medio ponderado por distancia
-sigma  = 50;
+sigma  = 20;
 wsize = 2;
 
 % Matriz (casi) gaussiana
@@ -32,34 +32,32 @@ wsize = 2;
 gmatrix = exp(-1*(xf.^2 + yf.^2) / (2*sigma^2) );
 
 % 3d histogram variables
-N = vecmap(end,2) + 1;
+L = vecmap(end,2) + 1;
 
-[R,G,B] = meshgrid(1:N, 1:N, 1:N);
+[R,G,B] = meshgrid(1:L, 1:L, 1:L);
 % rbw = 100;
 % gbw = rbw/2.7;
 % bbw = 1000;
-rbw = 5;
-gbw = rbw/1.5;
-bbw = 100;
+% rbw = 5;
+% gbw = rbw/1.5;
+% bbw = 100;
 
 glotprobs = zeros(length(bpoints), 1);
 
-% % For scatter plot
-% bgcell = cell(length(bpoints), 1);
-% glotcell = cell(length(bpoints), 1);
-% 
-% testing = cell(length(bpoints), 1);
+% Kernel calculation
+ksize = 2*kHalfSize + 1;
+bw = 10;
+[N,M,Z] = meshgrid(-kHalfSize:kHalfSize, -kHalfSize:kHalfSize, -kHalfSize:kHalfSize);
+kernel = exp(-1*( (N).^2/(2*bw^2) + (M).^2/(2*bw^2) + (Z).^2/(2*bw^2) ) );
 
 for j = 1:length(bpoints)
-    j
-    histobg = zeros(N,N,N);
-    histoglot = zeros(N,N,N);
+    histobg = zeros(L,L,L);
+    histoglot = zeros(L,L,L);
     bgcount = 0;
     glotcount = 0;
     
     bgdata = double.empty(0,4);
     glotdata = double.empty(0,4);
-%     testdata = double.empty(0,4);
     
     % Evaluar color solo en puntos dentro de un area cuadrada en torno al
     % punto base
@@ -81,7 +79,6 @@ for j = 1:length(bpoints)
                     weight = gmatrix(m + wsize*sigma + 1, n + wsize*sigma + 1);
 
                     if shape(m_im,n_im)    % Outside glottis  
-%                         histobg(r,g,b) = histobg(r,g,b) + weight;
                         bgcount = bgcount + 1;
 
                         [exists, idx] = ismember([r g b], bgdata(:,1:3), 'rows');
@@ -90,10 +87,7 @@ for j = 1:length(bpoints)
                         else
                             bgdata(end+1,:) = [r g b weight];
                         end
-    %                     
-    %                     testdata(end+1,:) = [color weight];
                     else            % Inside glottis
-%                         histoglot(r,g,b) = histoglot(r,g,b) + weight;
                         glotcount = glotcount + 1;
 
                         [exists, idx] = ismember([r g b], glotdata(:,1:3), 'rows');
@@ -113,23 +107,47 @@ for j = 1:length(bpoints)
         g = bgdata(i,2);
         b = bgdata(i,3);
         w = bgdata(i,4);
-        histobg = histobg + w * exp(-1*( (R-r).^2/(2*rbw^2) + (G-g).^2/(2*gbw^2) + (B-b).^2/(2*bbw^2) ) );
+        
+        ni = max([r - kHalfSize, 1]);
+        kni = max([1 - r + kHalfSize, 0]) + 1;
+        mi = max([g - kHalfSize, 1]);
+        kmi = max([1 - g + kHalfSize, 0]) + 1;
+        zi = max([b - kHalfSize, 1]);
+        kzi = max([1 - b + kHalfSize, 0]) + 1;
+
+        nf = min([r + kHalfSize, L]);
+        knf = ksize - max([r + kHalfSize - L, 0]);
+        mf = min([g + kHalfSize, L]);
+        kmf = ksize - max([g + kHalfSize - L, 0]);
+        zf = min([b + kHalfSize, L]);
+        kzf = ksize - max([b + kHalfSize - L, 0]);
+        
+        histobg(mi:mf, ni:nf, zi:zf) = histobg(mi:mf, ni:nf, zi:zf) + w * kernel(kmi:kmf, kni:knf, kzi:kzf);
     end
     for i = 1:length(glotdata)
         r = glotdata(i,1);
         g = glotdata(i,2);
         b = glotdata(i,3);
         w = glotdata(i,4);
-        histoglot = histoglot + w * exp(-1*( (R-r).^2/(2*rbw^2) + (G-g).^2/(2*gbw^2) + (B-b).^2/(2*bbw^2) ) );
+        
+        ni = max([r - kHalfSize, 1]);
+        kni = max([1 - r + kHalfSize, 0]) + 1;
+        mi = max([g - kHalfSize, 1]);
+        kmi = max([1 - g + kHalfSize, 0]) + 1;
+        zi = max([b - kHalfSize, 1]);
+        kzi = max([1 - b + kHalfSize, 0]) + 1;
+
+        nf = min([r + kHalfSize, L]);
+        knf = ksize - max([r + kHalfSize - L, 0]);
+        mf = min([g + kHalfSize, L]);
+        kmf = ksize - max([g + kHalfSize - L, 0]);
+        zf = min([b + kHalfSize, L]);
+        kzf = ksize - max([b + kHalfSize - L, 0]);
+        
+         histoglot(mi:mf, ni:nf, zi:zf) = histoglot(mi:mf, ni:nf, zi:zf) + w * kernel(kmi:kmf, kni:knf, kzi:kzf);
     end
     
     glotprobs(j) = glotcount / (bgcount+glotcount);
-    
-%     histobg = imgaussfilt3(histobg, [filtsize filtsize filtsize]);
-%     histoglot = imgaussfilt3(histoglot, [filtsize filtsize filtsize]);
-    
-%     histobg = histobg / max(max(max(histobg)));
-%     histoglot = histoglot / max(max(max(histoglot)));
     
     histos(j,:) = {p, histobg, histoglot};
     
