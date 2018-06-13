@@ -1,4 +1,4 @@
-function [ roiImg, roiBorder, roiObj ] = variance_roi( vidStruct, startFrame )
+function [ roiImg, roiBorder, roiObj ] = variance_roi( vidStruct, startFrame, graySource )
 
 % Returns a binary image where 1 is inside the ROI
 
@@ -9,7 +9,15 @@ else
 end
 
 for k = startFrame:endFrame
-    s(:,:,k) = rgb2gray(vidStruct(k).cdata);         % Cuadros del video (imagenes)
+    if isequal(graySource, 'red')
+        s(:,:,k) = vidStruct(k).cdata(:,:,1);
+    elseif isequal(graySource, 'blue')
+        s(:,:,k) = vidStruct(k).cdata(:,:,2);
+    elseif isequal(graySource, 'green')
+        s(:,:,k) = vidStruct(k).cdata(:,:,3);
+    else
+        s(:,:,k) = rgb2gray(vidStruct(k).cdata);
+    end
 end
 
 vidSize = size(s(:,:,1));
@@ -118,6 +126,13 @@ for j = 1:num
         rg = r;
         cg = c;
     end
+end
+
+if ~exist('roiObj')
+    roiImg = false(vidSize);
+    roiBorder = [];
+    roiObj = -1;
+    return
 end
 
 % Find same object in VMImg

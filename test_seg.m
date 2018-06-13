@@ -1,6 +1,6 @@
 %% Simpler case
 
-vidName = 'FN001';
+vidName = 'FP007';
 
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
@@ -12,7 +12,7 @@ end
 load('training_data\trained_data.mat');
 
 tic
-[outputContours,vidSize] =  Segmentation(vidName, vidPath, 44, FDmatrix, gndhisto, xaxis, yaxis, coef);
+[outputContours,vidSize] =  Segmentation(vidName, vidPath, 44, FDmatrix, gndhisto, xaxis, yaxis, coef, 'red');
 toc;
 
 %% Complex case, with evaluation

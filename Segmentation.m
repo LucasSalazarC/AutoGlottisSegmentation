@@ -1,4 +1,4 @@
-function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef)
+function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef, graySource)
 
 % Inputs:
 %   frames -> Numero de cuadros a segmentar
@@ -24,7 +24,7 @@ startTime = 0;
 vidObj.CurrentTime = startTime;
 endTime = startTime + frames/vidObj.FrameRate;
 while vidObj.CurrentTime <= endTime
-    s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
+    s(k).cdata = readFrame(vidObj);
     k = k+1;
 end
 
@@ -65,16 +65,32 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
-    grayFrame = rgb2gray(s(i).cdata);
+    
+    if isequal(graySource, 'red')
+        grayFrame = s(i).cdata(:,:,1);
+    elseif isequal(graySource, 'blue')
+        grayFrame = s(i).cdata(:,:,2);
+    elseif isequal(graySource, 'green')
+        grayFrame = s(i).cdata(:,:,3);
+    else
+        grayFrame = rgb2gray(s(i).cdata);
+    end
     
     
     % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
     if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
-        [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1);
+        [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1, graySource);
         notInRoi = imcomplement(initialRoiMask);
+        
+        if roiObj == -1
+            fprintf('ROI calculation Failed\n');
+            recGlottis = [];
+            break
+        end
 
         figure(9), imshow(imoverlay(grayFrame, roiObj, [0 1 0])), hold on
         plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
+        
     end
     
     
@@ -211,36 +227,34 @@ for i = 1:length(s)
 %         % Testing purposes
 %         save('test\lgd_testdata2.mat');
         
-%         % format [y,x]
-%         roiMinCoord = min(initialRoiBorder);
-%         roiMaxCoord = max(initialRoiBorder);
-% 
-%         origImage = rgb2gray(s(i).cdata);
-%         
-%         % Crop image to ROI
-%         lgdImage = origImage(roiMinCoord(1):roiMaxCoord(1),roiMinCoord(2):roiMaxCoord(2));
-% 
-%         % Change coordinates to cropped image
-%         bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
-%         bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
-%         
-%         % Apply contour adjusting algorithm
-%         fprintf('Ajustando contorno...\n');
-%         c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
-%         
-%         % Return to original coordinates
-%         c(:,1) = c(:,1) + roiMinCoord(2) - 1;
-%         c(:,2) = c(:,2) + roiMinCoord(1) - 1;
-%         
-%         % Fitler out of bounds
-%         if check_out_of_bounds(c, size(lgdImage), 'image')
-%             fprintf('Not in ROI; Out of bounds. False Region\n');
-%             continue
-%         end
+        % format [y,x]
+        roiMinCoord = min(initialRoiBorder);
+        roiMaxCoord = max(initialRoiBorder);
+        
+        % Crop image to ROI
+        lgdImage = grayFrame(roiMinCoord(1):roiMaxCoord(1),roiMinCoord(2):roiMaxCoord(2));
+
+        % Change coordinates to cropped image
+        bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
+        bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
         
         % Apply contour adjusting algorithm
         fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, grayFrame, 350);       % Variable c es el contorno
+        c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
+        
+        % Return to original coordinates
+        c(:,1) = c(:,1) + roiMinCoord(2) - 1;
+        c(:,2) = c(:,2) + roiMinCoord(1) - 1;
+        
+        % Fitler out of bounds
+        if check_out_of_bounds(c, size(lgdImage), 'image')
+            fprintf('Not in ROI; Out of bounds. False Region\n');
+            continue
+        end
+        
+%         % Apply contour adjusting algorithm
+%         fprintf('Ajustando contorno...\n');
+%         c = contourLGD(bestB, grayFrame, 350);       % Variable c es el contorno
         
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
@@ -260,7 +274,11 @@ for i = 1:length(s)
         objectMask = false(vidSize);
         cRound = round(c);
         for n = 1:length(cRound)
-            objectMask( cRound(n,2), cRound(n,1) ) = true;
+            cm = max(cRound(n,2), 1);
+            cm = min(cm, vidHeight);
+            cn = max(cRound(n,1), 1);
+            cn = min(cn, vidWidth);
+            objectMask( cm, cn ) = true;
         end
         objectMask = imfill(objectMask, 'holes');
         
@@ -547,11 +565,25 @@ for i = 1:size(recGlottis,1)
 %             % Save data for further testing
 %             save(char("test\pimage_testdata_new_" + vidName + ".mat"));
 
+            if isequal(graySource, 'red')
+                prevImage = s(prevframe).cdata(:,:,1);
+                currImage = s(curframe).cdata(:,:,1);
+            elseif isequal(graySource, 'blue')
+                prevImage = s(prevframe).cdata(:,:,2);
+                currImage = s(curframe).cdata(:,:,2);
+            elseif isequal(graySource, 'green')
+                prevImage = s(prevframe).cdata(:,:,3);
+                currImage = s(curframe).cdata(:,:,3);
+            else
+                prevImage = rgb2gray(s(prevframe).cdata);
+                currImage = rgb2gray(s(curframe).cdata);
+            end
+
             % Calcular histograma 3d para 8 puntos en el borde
 
             npoints = 15;
             filtsigma = 3;
-            [histos, ~, ~,~,~] = colorhist2(rgb2gray(s(prevframe).cdata), shape, border, roimask, npoints, filtsigma);
+            [histos, ~, ~,~,~] = colorhist2(prevImage, shape, border, roimask, npoints, filtsigma);
             bpoints = cell2mat(histos(:,1));
             
 %             figure(76)
@@ -564,7 +596,7 @@ for i = 1:size(recGlottis,1)
             idxs = dsearchn(bpoints, rpts);
 
             % Calculate probability image
-            I = rgb2gray(s(curframe).cdata);
+            I = currImage;
             pimage = zeros(size(shape));
             for j = 1:length(rpts)
                 pixInt = double( I(rpts(j,2),rpts(j,1)) ) + 1;
@@ -865,7 +897,7 @@ fprintf('Finished!\n\n');
 
 
 %myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\roi_nocolor_seg_', vidObj.Name), 'Uncompressed AVI');
+myVideo = VideoWriter(strcat('Output_videos\roi_nocolor_', graySource, '_seg_', vidObj.Name), 'Uncompressed AVI');
 myVideo.FrameRate = 30;
 open(myVideo);
 for i = 1:length(segvideo)
@@ -877,7 +909,7 @@ for i = 1:length(segvideo)
 end
 close(myVideo);
 
-save(strcat('Output_contours\roi_nocolor_', vidName, '.mat'), 'outputContours');
+save(strcat('Output_contours\roi_nocolor_', graySource, '_', vidName, '.mat'), 'outputContours');
 
 
 end
