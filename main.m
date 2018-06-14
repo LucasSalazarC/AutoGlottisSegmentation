@@ -55,16 +55,18 @@ save(strcat('Output_contours\variance_roi_', currDateTime, '.mat'), 'evaluationD
 
 fileID = fopen(strcat('Output_contours\variance_roi_', currDateTime, '.txt'), 'w');
 fprintf('----------------------------------------------------------------------------------------\n\n');
-fprintf('Dice coefficients and Area Error:\n\n');
-fprintf(fileID, 'Dice coefficients and Area Error:\n\n');
+fprintf('Dice coefficients and Area Error. Format:\n');
+fprintf('Type: Mean   Median StdDev || Values for each frame\n\n');
+fprintf(fileID, 'Dice coefficients and Area Error. Format:\n');
+fprintf(fileID, 'Type: Mean   Median StdDev || Values for each frame\n\n');
 for i = 1:size(evaluationData,1)
     name = cell2mat(evaluationData(i,1));
     fprintf('%s\n', name);
     fprintf(fileID, '%s\n', name);
     
     diceCoefs = cell2mat(evaluationData(i,2));
-    fprintf('Dice: %0.4f || ', mean(diceCoefs));
-    fprintf(fileID, 'Dice: %0.4f || ', mean(diceCoefs));
+    fprintf('Dice: %0.4f %0.4f %0.4f || ', mean(diceCoefs), median(diceCoefs), std(diceCoefs));
+    fprintf(fileID, 'Dice: %0.4f %0.4f %0.4f || ', mean(diceCoefs), median(diceCoefs), std(diceCoefs));
     for j = 1:length(diceCoefs)
         fprintf('%0.4f ', diceCoefs(j));
         fprintf(fileID, '%0.4f ', diceCoefs(j));
@@ -73,8 +75,8 @@ for i = 1:size(evaluationData,1)
     fprintf(fileID, '\n');
     
     areaErrors = cell2mat(evaluationData(i,3));
-    fprintf('Area: %0.4f || ', mean(areaErrors));
-    fprintf(fileID, 'Area: %0.4f || ', mean(areaErrors));
+    fprintf('Area: %0.4f %0.4f %0.4f || ', mean(areaErrors), median(areaErrors), std(areaErrors));
+    fprintf(fileID, 'Area: %0.4f %0.4f %0.4f || ', mean(areaErrors), median(areaErrors), std(areaErrors));
     for j = 1:length(areaErrors)
         fprintf('%0.4f ', areaErrors(j));
         fprintf(fileID, '%0.4f ', areaErrors(j));
@@ -85,6 +87,8 @@ for i = 1:size(evaluationData,1)
     fprintf('Elapsed Time = %0.4f seconds; Per frame = %0.4f seconds\n\n', cell2mat(evaluationData(i,4)), cell2mat(evaluationData(i,5)));
     fprintf(fileID, 'Elapsed Time = %0.4f seconds; Per frame = %0.4f seconds\n\n', cell2mat(evaluationData(i,4)), cell2mat(evaluationData(i,5)));
 end
+
+fclose(fileID);
 
 
 

@@ -120,6 +120,13 @@ for j = 1:num
     end
 end
 
+if ~exist('roiObj')
+    roiImg = false(vidSize);
+    roiBorder = [];
+    roiObj = -1;
+    return
+end
+
 % Find same object in VMImg
 [labels, num] = bwlabel(thrVMImg);
 for j = 1:num

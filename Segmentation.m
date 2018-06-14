@@ -70,6 +70,12 @@ for i = 1:length(s)
     if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
         [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1);
         notInRoi = imcomplement(initialRoiMask);
+        
+        if roiObj == -1
+            fprintf('ROI calculation failed\n');
+            recGlottis = [];
+            break
+        end
 
         figure(9), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
         plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
@@ -256,7 +262,11 @@ for i = 1:length(s)
         objectMask = false(vidSize);
         cRound = round(c);
         for n = 1:length(cRound)
-            objectMask( cRound(n,2), cRound(n,1) ) = true;
+            cm = max(cRound(n,2), 1);
+            cm = min(cm, vidHeight);
+            cn = max(cRound(n,1), 1);
+            cn = min(cn, vidWidth);
+            objectMask( cm, cn ) = true;
         end
         objectMask = imfill(objectMask, 'holes');
         
