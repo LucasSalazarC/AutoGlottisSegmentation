@@ -1,0 +1,36 @@
+vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Resized videos\rsz_';
+vidList = {'FN003', 'FN007', 'FP007', 'FP016', 'FN003_naso', 'FP005_naso', 'FP011_naso', 'FD003_pre', 'FN003_lombard', 'MN003_adapt'};
+
+channel = 1;
+
+for j = 1:length(vidList)
+    vidName = cell2mat(vidList(j));
+    fprintf('Processing video %s...\n', vidName);
+
+    % Load manual segmentation data to get number of frames
+    load(strcat('manual_segmentation\',vidName,'.mat'));
+    frames = cell2mat(correctBorders(end,2)) + 44;
+    
+    % Open and read video data
+    vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
+    vidHeight = vidObj.Height;
+    vidWidth = vidObj.Width;
+    s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
+
+    k = 1;
+    vidObj.CurrentTime = 0;
+    endTime = frames/vidObj.FrameRate;
+    while vidObj.CurrentTime <= endTime
+        s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
+        k = k+1;
+    end
+    
+    singleChannelVideo = VideoWriter(strcat('C:\Users\lucassalazar12\Videos\DSP\Resized videos\rsz_', vidObj.Name), 'Uncompressed AVI');
+    singleChannelVideo.FrameRate = 30;
+    open(singleChannelVideo);
+    for i = 1:length(videoFrames)
+        writeVideo(singleChannelVideo, videoFrames{i});
+    end
+    close(singleChannelVideo);
+    
+end
