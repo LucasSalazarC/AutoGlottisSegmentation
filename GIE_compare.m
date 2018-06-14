@@ -1,5 +1,7 @@
 vidList = {'FN003', 'FN007', 'FP007', 'FP016', 'FN003_naso', 'FP005_naso', 'FP011_naso', 'FD003_pre', 'FN003_lombard', 'MN003_adapt'};
 
+channel = '';
+
 evaluationData = cell(length(vidList),3);
 
 for j = 1:length(vidList)
@@ -18,9 +20,14 @@ for j = 1:length(vidList)
     vidSize = resizeData{5};
     
     % Read segmentation data from text file
-    text_file = fopen( sprintf('GIE_segdata\\%s_segdata.txt', vidName), 'r' );
+    if isempty(channel)
+        text_file = fopen( sprintf('GIE_segdata\\%s_segdata.txt', vidName), 'r' );
+    else
+        text_file = fopen( sprintf('GIE_segdata\\%s_%s_segdata.txt', channel, vidName), 'r' );
+    end
     lines = textscan(text_file, '%s', 'delimiter', '\n');
     lines = lines{1};
+    fclose(text_file);
     
     gieContours = {};
     
@@ -115,18 +122,25 @@ for j = 1:length(vidList)
     fprintf('Mean Area Error = %f\n', mean(areaerror_arr));
 end
 
-fileID = fopen('GIE_segdata\GIE_results.txt', 'w');
+if isempty(channel)
+    fileID = fopen('GIE_segdata\\GIE_results.txt', 'w');
+else
+    fileID = fopen(sprintf('GIE_segdata\\GIE_%s_results.txt', channel), 'w');
+end
+
 fprintf('----------------------------------------------------------------------------------------\n\n');
-fprintf('Dice coefficients and Area Error:\n\n');
-fprintf(fileID, 'Dice coefficients and Area Error:\n\n');
+fprintf('Dice coefficients and Area Error. Format:\n');
+fprintf('Type: Mean   Median StdDev || Values for each frame\n\n');
+fprintf(fileID, 'Dice coefficients and Area Error. Format:\n');
+fprintf(fileID, 'Type: Mean   Median StdDev || Values for each frame\n\n');
 for i = 1:size(evaluationData,1)
     name = cell2mat(evaluationData(i,1));
     fprintf('%s\n', name);
     fprintf(fileID, '%s\n', name);
     
     diceCoefs = cell2mat(evaluationData(i,2));
-    fprintf('Dice: %0.4f || ', mean(diceCoefs));
-    fprintf(fileID, 'Dice: %0.4f || ', mean(diceCoefs));
+    fprintf('Dice: %0.4f %0.4f %0.4f || ', mean(diceCoefs), median(diceCoefs), std(diceCoefs));
+    fprintf(fileID, 'Dice: %0.4f %0.4f %0.4f || ', mean(diceCoefs), median(diceCoefs), std(diceCoefs));
     for j = 1:length(diceCoefs)
         fprintf('%0.4f ', diceCoefs(j));
         fprintf(fileID, '%0.4f ', diceCoefs(j));
@@ -135,8 +149,8 @@ for i = 1:size(evaluationData,1)
     fprintf(fileID, '\n');
     
     areaErrors = cell2mat(evaluationData(i,3));
-    fprintf('Area: %0.4f || ', mean(areaErrors));
-    fprintf(fileID, 'Area: %0.4f || ', mean(areaErrors));
+    fprintf('Area: %0.4f %0.4f %0.4f || ', mean(areaErrors), median(areaErrors), std(areaErrors));
+    fprintf(fileID, 'Area: %0.4f %0.4f %0.4f || ', mean(areaErrors), median(areaErrors), std(areaErrors));
     for j = 1:length(areaErrors)
         fprintf('%0.4f ', areaErrors(j));
         fprintf(fileID, '%0.4f ', areaErrors(j));
@@ -144,3 +158,5 @@ for i = 1:size(evaluationData,1)
     fprintf('\n');
     fprintf(fileID, '\n');
 end
+
+fclose(fileID);
