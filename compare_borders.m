@@ -15,7 +15,14 @@ end
 im1 = imfill(im1, 'holes');
 im2 = imfill(im2, 'holes');
 
-intersection = im1 & im2;
+if isequal( size(im1), size(im2) )
+    intersection = im1 & im2;  
+    
+else    % Border is wrong; probably went off bounds
+    dice = 0;
+    area_error = 1;
+    return
+end
 
 den = sum(sum(im1)) + sum(sum(im2));
 if den == 0

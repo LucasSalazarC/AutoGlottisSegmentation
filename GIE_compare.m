@@ -1,6 +1,6 @@
 vidList = {'FN003', 'FN007', 'FP007', 'FP016', 'FN003_naso', 'FP005_naso', 'FP011_naso', 'FD003_pre', 'FN003_lombard', 'MN003_adapt'};
 
-channel = '';
+channel = 'blue';
 
 evaluationData = cell(length(vidList),3);
 
@@ -155,8 +155,8 @@ for i = 1:size(evaluationData,1)
         fprintf('%0.4f ', areaErrors(j));
         fprintf(fileID, '%0.4f ', areaErrors(j));
     end
-    fprintf('\n');
-    fprintf(fileID, '\n');
+    fprintf('\n\n\n');
+    fprintf(fileID, '\n\n\n');
 end
 
 fclose(fileID);
