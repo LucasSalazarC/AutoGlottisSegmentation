@@ -51,7 +51,6 @@ for j = 1:length(bpoints)
 %     % For scatter plot
 %     bgdata = double.empty(0,4);
 %     glotdata = double.empty(0,4);
-%     testdata = double.empty(0,4);
     
     % Evaluar color solo en puntos dentro de un area cuadrada en torno al
     % punto base
@@ -76,26 +75,24 @@ for j = 1:length(bpoints)
                         histobg(r,g,b) = histobg(r,g,b) + weight;
                         bgcount = bgcount + 1;
 
-    %                     % For scatter plot
-    %                     [exists, idx] = ismember([r g b], bgdata(:,1:3), 'rows');
-    %                     if exists
-    %                         bgdata(idx,4) = bgdata(idx,4) + weight;
-    %                     else
-    %                         bgdata(end+1,:) = [color weight];
-    %                     end
-    %                     
-    %                     testdata(end+1,:) = [color weight];
+%                         % For scatter plot
+%                         [exists, idx] = ismember(color-1, bgdata(:,1:3), 'rows');
+%                         if exists
+%                             bgdata(idx,4) = bgdata(idx,4) + weight;
+%                         else
+%                             bgdata(end+1,:) = [color-1 weight];
+%                         end
                     else            % Inside glottis
                         histoglot(r,g,b) = histoglot(r,g,b) + weight;
                         glotcount = glotcount + 1;
 
-    %                     % For scatter plot
-    %                     [exists, idx] = ismember(color, glotdata(:,1:3), 'rows');
-    %                     if exists
-    %                         glotdata(idx,4) = glotdata(idx,4) + weight;
-    %                     else
-    %                         glotdata(end+1,:) = [color weight];
-    %                     end
+%                         % For scatter plot
+%                         [exists, idx] = ismember(color, glotdata(:,1:3), 'rows');
+%                         if exists
+%                             glotdata(idx,4) = glotdata(idx,4) + weight;
+%                         else
+%                             glotdata(end+1,:) = [color weight];
+%                         end
                     end
                 end
             end
@@ -107,17 +104,13 @@ for j = 1:length(bpoints)
     filtsize = 2*ceil(2*filtsigma) + 1;
     histobg = imgaussfilt3(histobg, filtsigma, 'FilterSize', filtsize);
     histoglot = imgaussfilt3(histoglot, filtsigma, 'FilterSize', filtsize);
-%     histobg = imboxfilt3(histobg, [filtsize filtsize filtsize]);
-%     histoglot = imboxfilt3(histoglot, [filtsize filtsize filtsize]);
-    
-%     histobg = histobg / max(max(max(histobg)));
-%     histoglot = histoglot / max(max(max(histoglot)));
     
     histos(j,:) = {p, histobg, histoglot};
     
 %     bgcell(j) = {bgdata};
 %     glotcell(j) = {glotdata};
 %     testing(j) = {testdata};
+    
 end
 
 end

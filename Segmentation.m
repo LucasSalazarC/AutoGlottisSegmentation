@@ -171,10 +171,10 @@ for i = 1:length(s)
     else      
         fprintf('Potencial borde de glotis encontrado!\n');
         fprintf('Threshold = %d, Dissimilarity = %f\n', thrindex, bestDsim);
-        
+     
         figure(1)
         hold off
-        image(s(i).cdata)
+        imshow(s(i).cdata)
         axis image
         
         hold on
@@ -599,13 +599,7 @@ for i = 1:size(recGlottis,1)
                 toobig = (objwidth > objheight) && (objwidth > prevwidth);
                 toosmall = (length(objr) < 10);
                 toowide = objwidth > 2*objheight;
-
-                val = outofrange || toosmall || toobig || touches_roi || toowide;
-                if val
-                    obj = (labels == j);
-                    pseg = pseg & ~obj;
-                end
-
+                
                 if touches_roi
                     fprintf('GRA %d: Roi collision\n', j);
                 end
@@ -620,6 +614,14 @@ for i = 1:size(recGlottis,1)
                 end
                 if toowide
                     fprintf('GRA %d: Too wide\n', j);
+                end
+                
+                
+
+                val = outofrange || toosmall || toobig || touches_roi || toowide;
+                if val
+                    obj = (labels == j);
+                    pseg = pseg & ~obj;
                 end
 
                 newproj(j,:) = {horproj, vertproj, ~val};

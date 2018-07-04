@@ -1,13 +1,12 @@
 %% Simpler case
 
-vidName = 'FD003_pre';
+vidName = 'FN002';
 
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
 else
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
 end
-
 % Load training data
 load('training_data\trained_data.mat');
 
