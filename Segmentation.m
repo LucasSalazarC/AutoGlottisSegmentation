@@ -79,7 +79,7 @@ for i = 1:length(s)
     
     % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
     if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
-        [tempInitialRoiMask, tempInitialRoiBorder, tempRoiObj] = variance_roi(s, 1, graySource);
+        [tempInitialRoiMask, tempInitialRoiBorder, tempRoiObj] = variance_roi(s, i, graySource);
         
         if tempRoiObj == -1
             if i == 1
