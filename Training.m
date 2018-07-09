@@ -1,3 +1,6 @@
+function [coef, FDmatrix, gndhisto, xaxis, yaxis] = Training(blacklist)
+
+% blacklist is a string array with videos we don't want to use for training
 
 % Loads borderData. 
 % Col 1 -> Border in counterclockwise order. First column is x, second column is y.
@@ -6,12 +9,17 @@
 load('training_data\borders_and_images.mat');
         
 N = 30;
-FDmatrix = zeros(size(borderData,1),N);
-GNDmatrix = zeros(size(borderData,1),8);
+FDmatrix = [];
+GNDmatrix = [];
 
 figure(1)
 hold off
 for i = 1:length(borderData(:,1))
+    
+    % Skip videos in blacklist
+    if ~isempty(blacklist) && ismember( string(borderData{i,3}), blacklist )
+        continue
+    end
     
     %% DESCRIPTORES DE FOURIER
 
@@ -20,7 +28,7 @@ for i = 1:length(borderData(:,1))
     % Calcular y guardar Descriptores de Fourier. Los indices idxlow e
     % idxhigh se usaran en el GND
     [FD,idxlow,idxhigh] = fourierDescriptors(border,N);
-    FDmatrix(i,:) = FD;
+    FDmatrix(end+1,:) = FD;
     Brec = ifft(FD);
 
     
@@ -51,7 +59,7 @@ for i = 1:length(borderData(:,1))
     GND = getGND(I, Ibin, border, idxlow, idxhigh);
     g = sprintf('%f ', GND);
     fprintf('GND %d: %s\n', i, g);
-    GNDmatrix(i,:) = GND;
+    GNDmatrix(end+1,:) = GND;
     
     fprintf('Imagen %d lista\n\n', i);
     
@@ -115,7 +123,9 @@ toc
 % histograma generado (ejes + valores en z) y  los coeficientes pca para
 % poder proyectar las muestras.
 
-% save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+
+end
 
 
 
