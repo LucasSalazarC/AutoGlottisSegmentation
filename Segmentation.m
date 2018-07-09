@@ -68,9 +68,9 @@ for i = 1:length(s)
     
     % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
     if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
-        [tempInitialRoiMask, tempInitialRoiBorder, tempRoiObj] = variance_roi(s, i, graySource);
+        [tempInitialRoiMask, tempInitialRoiBorder, tempRoiObj] = variance_roi(s, i);
 
-        if roiObj == -1
+        if tempRoiObj == -1
             if i == 1
                 fprintf('ROI calculation Failed\n');
                 recGlottis = [];
@@ -85,7 +85,7 @@ for i = 1:length(s)
             notInRoi = imcomplement(initialRoiMask);
         end
 
-        figure(9), imshow(imoverlay(grayFrame, roiObj, [0 1 0])), hold on
+        figure(9), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
         plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
 
     end
