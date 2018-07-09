@@ -9,7 +9,7 @@ id = 'MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame';
 warning('off', id);
 
 % Open and read video data
-vidName = 'FN003';
+vidName = 'FP016';
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
 else
