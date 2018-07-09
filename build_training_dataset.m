@@ -1,3 +1,5 @@
+function [borderData] = build_training_dataset( graySource )
+
 files = dir('training_data');
 
 borderData = {};
@@ -19,14 +21,26 @@ for i = 1:length(files)
 
         vidObj.CurrentTime = 0;
         for k = 1:cell2mat(correctBorders(1,2))
-            s(k).cdata = rgb2gray(readFrame(vidObj));         % Cuadros del video (imagenes)
+            s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
         end
         
         borderData(end+1,1) = { cell2mat(correctBorders(1,1))};
-        borderData(end,2) = { s(k).cdata };
+        
+        if isequal(graySource, 'red')
+            borderData(end,2) = {s(k).cdata(:,:,1)};
+        elseif isequal(graySource, 'blue')
+            borderData(end,2) = {s(k).cdata(:,:,2)};
+        elseif isequal(graySource, 'green')
+            borderData(end,2) = {s(k).cdata(:,:,3)};
+        else
+            borderData(end,2) = {rgb2gray(s(k).cdata)};
+        end
+    
         borderData(end,3) = { vidName };
         clear correctBorders
     end
 end
 
 save('training_data\borders_and_images.mat', 'borderData');
+
+end

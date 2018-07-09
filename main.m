@@ -7,6 +7,11 @@ for k = 1:length(graySourceList)
     
     evaluationData = cell(length(vidList),5);
     
+    build_training_dataset(graySourceList{k});
+
+    % Train with entire training dataset
+    [coef, FDmatrix, gndhisto, xaxis, yaxis] = Training([]);
+    
     for j = 1:length(vidList)
         vidName = cell2mat(vidList(j));
         evaluationData(j,1) = {vidName};
@@ -15,9 +20,6 @@ for k = 1:length(graySourceList)
         else
             vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
         end
-
-        % Load training data
-        load('training_data\trained_data.mat');
 
         % Load manual segmentation data for evaluation
         load(strcat('manual_segmentation\',vidName,'.mat'));
