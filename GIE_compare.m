@@ -1,6 +1,6 @@
 vidList = {'FN003', 'FN007', 'FP007', 'FP016', 'FN003_naso', 'FP005_naso', 'FP011_naso', 'FD003_pre', 'FN003_lombard', 'MN003_adapt'};
 
-channel = 'blue';
+channel = 'green';
 
 evaluationData = cell(length(vidList),3);
 
