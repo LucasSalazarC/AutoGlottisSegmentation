@@ -318,7 +318,11 @@ for i = 1:length(s)
             % Generar imagen binaria con el contorno
             binShape = false(size(threshframe));
             for j = 1:length(c)
-                binShape(round(c(j,2)), round(c(j,1))) = true;
+                cm = max(round(c(j,2)), 1);
+                cm = min(cm, vidHeight);
+                cn = max(round(c(j,1)), 1);
+                cn = min(cn, vidWidth);
+                binShape(cm, cn) = true;
             end
             binShape = imfill(binShape, 'holes');
             binShape = imcomplement(binShape);
