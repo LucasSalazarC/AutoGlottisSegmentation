@@ -49,11 +49,11 @@ end
 
 currDateTime = datestr(datetime);
 currDateTime(regexp(currDateTime,'[:]')) = [];
-save(strcat('Output_contours\master_', currDateTime, '.mat'), 'evaluationData');
+save(strcat('Output_contours\original_', currDateTime, '.mat'), 'evaluationData');
 
 %% Pretty Print
 
-fileID = fopen(strcat('Output_contours\master_', currDateTime, '.txt'), 'w');
+fileID = fopen(strcat('Output_contours\original_', currDateTime, '.txt'), 'w');
 fprintf('----------------------------------------------------------------------------------------\n\n');
 fprintf('Dice coefficients and Area Error. Format:\n');
 fprintf('Type: Mean   Median StdDev || Values for each frame\n\n');
