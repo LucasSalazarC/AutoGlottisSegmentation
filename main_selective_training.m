@@ -1,4 +1,4 @@
-vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
+vidPath = 'C:\Users\lucassalazar12\Videos\DSP\all_videos\';
 files = dir(vidPath);
 
 for i = 1:length(files)
@@ -11,7 +11,7 @@ for i = 1:length(files)
         [coef, FDmatrix, gndhisto, xaxis, yaxis] = Training( string(vidName) );
 
         tic
-        [outputContours,vidSize] =  Segmentation(vidName, vidPath, 500, FDmatrix, gndhisto, xaxis, yaxis, coef);
+        [outputContours,vidSize] =  Segmentation(vidName, vidPath, 88, FDmatrix, gndhisto, xaxis, yaxis, coef);
         time = toc;
 
         fprintf('Elapsed Time = %0.4f seconds; Per frame = %0.4f seconds\n', time, time/500);
