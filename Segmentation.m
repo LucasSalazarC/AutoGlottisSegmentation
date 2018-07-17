@@ -310,8 +310,10 @@ for i = 1:size(recGlottis,1)
     % Save starting frame
     vidFrame = s(prevframe).cdata;
     for j = 1:length(border)
-        m = border(j,2);
-        n = border(j,1);
+        m = max(border(j,2), 1);
+        m = min(m, vidHeight);
+        n = max(border(j,1), 1);
+        n = min(n, vidWidth);
 
         vidFrame(m,n,1) = 0;
         vidFrame(m,n,2) = 255;
@@ -344,7 +346,11 @@ for i = 1:size(recGlottis,1)
             curBorder = cell2mat(outputContours(curframe));
             curMask = false(size(shape));
             for j = 1:length(curBorder)
-                curMask( curBorder(j,2), curBorder(j,1) ) = true;
+                cmm = max(curBorder(j,2), 1);
+                cmm = min(cmm, vidHeight);
+                cmn = max(curBorder(j,1), 1);
+                cmn = min(cmn, vidWidth);
+                curMask( cmm, cmn ) = true;
             end
             curMask = imfill(curMask, 'holes');
             
@@ -654,8 +660,10 @@ for i = 1:size(recGlottis,1)
                 ctr = [ctr; glotborders{j}];
             end
             for j = 1:length(ctr)
-                m = ctr(j,1);
-                n = ctr(j,2);
+                m = max(ctr(j,1), 1);
+                m = min(m, vidHeight);
+                n = max(ctr(j,2), 1);
+                n = min(n, vidWidth);
 
                 vidFrame(m,n,1) = 0;
                 vidFrame(m,n,2) = 255;
