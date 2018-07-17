@@ -1,6 +1,6 @@
 %% Simpler case
 
-vidName = 'FN001';
+vidName = 'FP004_naso';
 
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
@@ -8,11 +8,11 @@ else
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
 end
 
-% Load training data
-load('training_data\trained_data.mat');
+% Train without video we are processing
+[coef, FDmatrix, gndhisto, xaxis, yaxis] = Training( string(vidName) );
 
 tic
-[outputContours,vidSize] =  Segmentation(vidName, vidPath, 44, FDmatrix, gndhisto, xaxis, yaxis, coef, 'rgb2gray');
+[outputContours,vidSize] =  Segmentation(vidName, vidPath, 500, FDmatrix, gndhisto, xaxis, yaxis, coef, 'green');
 toc;
 
 %% Complex case, with evaluation
