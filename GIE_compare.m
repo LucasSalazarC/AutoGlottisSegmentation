@@ -1,6 +1,6 @@
 vidList = {'FN003', 'FN007', 'FP007', 'FP016', 'FN003_naso', 'FP005_naso', 'FP011_naso', 'FD003_pre', 'FN003_lombard', 'MN003_adapt'};
 
-channel = 'green';
+channel = 'rgb2gray';
 
 evaluationData = cell(length(vidList),3);
 
@@ -20,7 +20,7 @@ for j = 1:length(vidList)
     vidSize = resizeData{5};
     
     % Read segmentation data from text file
-    if isempty(channel)
+    if isempty(channel) || isequal(channel, 'rgb2gray')
         text_file = fopen( sprintf('GIE_segdata\\%s_segdata.txt', vidName), 'r' );
     else
         text_file = fopen( sprintf('GIE_segdata\\%s_%s_segdata.txt', channel, vidName), 'r' );
@@ -89,6 +89,9 @@ for j = 1:length(vidList)
 %         waitforbuttonpress
         
     end
+    
+    % Ts save GIE contours in the same format as the others
+    gieToSave = {};
 
     dice_arr = [];
     areaerror_arr = [];
@@ -97,6 +100,8 @@ for j = 1:length(vidList)
         frame_idx = cell2mat(correctBorders(i,2));
         
         gieBorder = gieContours{frame_idx};
+        
+        gieToSave(end+1,:) = {gieBorder, frame_idx};
 
         [dice,area_error] = compare_borders(correctBorder, gieBorder, vidSize); 
         dice_arr(end+1) = dice;
@@ -113,6 +118,9 @@ for j = 1:length(vidList)
 %         dice
 %         a = 0;
     end
+    
+    % Save GIE contour
+    save( strcat('Output_contours\gie_', channel, '_', vidName, '.mat'), 'gieToSave' );
 
     evaluationData(j,2) = {dice_arr};
     evaluationData(j,3) = {areaerror_arr};
