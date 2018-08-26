@@ -2,7 +2,6 @@
 load('training_data\trained_data.mat');
 
 % Inputs:
-%   frames -> Numero de cuadros a segmentar
 %   FDmatrix -> Cada fila es un descriptor de fourier.
 %   gndhisto -> Histograma 2D de GND
 %   xaxis -> Eje x del histograma (primera componente)
@@ -11,7 +10,7 @@ load('training_data\trained_data.mat');
 
 
 %% Open and read video data
-vidName = 'FN003';
+vidName = 'FN007';
 if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
     vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
 else
@@ -23,11 +22,12 @@ vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 vidSize = [vidHeight vidWidth];
+frames = 44;
 
 k = 1;
-startTime = 1.1;
+startTime = 0;
 vidObj.CurrentTime = startTime;
-endTime = startTime + 0.2;
+endTime = startTime + frames/vidObj.FrameRate;
 while vidObj.CurrentTime <= endTime
     s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
     k = k+1;
@@ -68,6 +68,32 @@ for i = 1:length(s)
     thrindex = 0;
     bestDsim = inf;
     
+    % Remove black areas on the edges of the video
+    blackMask = im2bw(s(i).cdata, 15/255);
+    blackMask = imcomplement(blackMask);
+
+    se = strel('disk', 1);
+    blackMask = imdilate(blackMask, se);
+
+    allBorders = bwboundaries(blackMask);
+    for k = 1:length(allBorders)
+        B = allBorders{k};              % Clockwise order
+        B = fliplr(B);                  % x -> columna 1, y -> columna 2
+
+        % Filter shapes not touching the edge of the image
+        if check_out_of_bounds(B, vidSize, 'image')
+            continue
+        end
+
+        objectMask = false(vidSize);
+        for j = 1:length(B)
+            objectMask( B(j,2), B(j,1) ) = true;
+        end
+        objectMask = imfill(objectMask, 'holes');
+
+        blackMask = blackMask & ~objectMask;
+    end
+    
 %     % For testing purposes
 %     figure(20)
 %     image(s(i).cdata)
@@ -94,6 +120,17 @@ for i = 1:length(s)
 
             % Filter shapes too small, too big, or touching the edge of the image
             if length(B) < 30 || length(B) > 500 || check_out_of_bounds(B, size(openedframe), 'image')
+                continue
+            end
+            
+            objectMask = false(vidSize);
+            for n = 1:length(B)
+                objectMask( B(n,2), B(n,1) ) = true;
+            end
+            objectMask = imfill(objectMask, 'holes');
+            
+            % Filter shapes touching the black area at the edge of the image
+            if sum(sum( blackMask & objectMask )) > 0
                 continue
             end
          
@@ -139,10 +176,10 @@ for i = 1:length(s)
     else      
         fprintf('Potencial borde de glotis encontrado!\n');
         fprintf('Threshold = %d, Dissimilarity = %f\n', thrindex, bestDsim);
-        
+     
         figure(1)
         hold off
-        image(s(i).cdata)
+        imshow(s(i).cdata)
         axis image
         
         hold on
@@ -188,7 +225,11 @@ for i = 1:length(s)
             % Generar imagen binaria con el contorno
             binShape = false(size(threshframe));
             for j = 1:length(c)
-                binShape(round(c(j,2)), round(c(j,1))) = true;
+                cm = max(round(c(j,2)), 1);
+                cm = min(cm, vidHeight);
+                cn = max(round(c(j,1)), 1);
+                cn = min(cn, vidWidth);
+                binShape(cm, cn) = true;
             end
             binShape = imfill(binShape, 'holes');
             binShape = imcomplement(binShape);
@@ -230,6 +271,7 @@ end
 
 if isempty(recGlottis)
     fprintf('Algorithm failed. No glottis found\n');
+    outputContours = cell(frames,1);
     return
 end
 
@@ -246,7 +288,7 @@ frameflag = false(length(s), 1);
 
 % To save video frames
 segvideo = cell(length(s),1);
-outputContours = cell(length(s),1);
+outputContours = cell(frames,1);
 
 % Sort by FD dissimilarity
 recGlottis = sortrows(recGlottis, 4);
@@ -273,8 +315,10 @@ for i = 1:size(recGlottis,1)
     % Save starting frame
     vidFrame = s(prevframe).cdata;
     for j = 1:length(border)
-        m = border(j,2);
-        n = border(j,1);
+        m = max(border(j,2), 1);
+        m = min(m, vidHeight);
+        n = max(border(j,1), 1);
+        n = min(n, vidWidth);
 
         vidFrame(m,n,1) = 0;
         vidFrame(m,n,2) = 255;
@@ -307,7 +351,11 @@ for i = 1:size(recGlottis,1)
             curBorder = cell2mat(outputContours(curframe));
             curMask = false(size(shape));
             for j = 1:length(curBorder)
-                curMask( curBorder(j,2), curBorder(j,1) ) = true;
+                cmm = max(curBorder(j,2), 1);
+                cmm = min(cmm, vidHeight);
+                cmn = max(curBorder(j,1), 1);
+                cmn = min(cmn, vidWidth);
+                curMask( cmm, cmn ) = true;
             end
             curMask = imfill(curMask, 'holes');
             
@@ -337,15 +385,18 @@ for i = 1:size(recGlottis,1)
                 % Use biggest segmented border as glottis region
                 % NEED TO FIX THIS LATER
                 % What if there is more than one object?
-                bmax = 0;
-                for j = 1:length(glotborders)
-                    temp = glotborders{j};
-                    if length(temp) > bmax
-                        border = temp;
-                        bmax = length(temp);
-                    end
-                end
-                border = fliplr(border);
+%                 bmax = 0;
+%                 for j = 1:length(glotborders)
+%                     temp = glotborders{j};
+%                     if length(temp) > bmax
+%                         border = temp;
+%                         bmax = length(temp);
+%                     end
+%                 end
+%                 border = fliplr(border);
+                
+                % border is in format (x,y)
+                border = ctr;
                 if ~ispolycw(border(:,1), border(:,2))
                     border = flipud(border);
                 end
@@ -436,8 +487,8 @@ for i = 1:size(recGlottis,1)
             %%%% PROBABILITY IMAGE %%
             %%%%%%%%%%%%%%%%%%%%%%%%%
 
-            % Save data for further testing
-%             save(char("test\pimage_testdata_new_" + vidName + "_2.mat"));
+%             % Save data for further testing
+%             save(char("test\pimage_testdata_new_" + vidName + ".mat"));
 
             % Calcular histograma 3d para 8 puntos en el borde
             % Mapping to quantize colors
@@ -478,10 +529,8 @@ for i = 1:size(recGlottis,1)
                     bglike = 0;
                 end
 
-%                 pglot = glotprobs(idx);
-%                 pbg = 1 - pglot;
-                pglot = 0.5;
-                pbg = 0.5;
+                pglot = 0.4;
+                pbg = 0.6;
 
                 postprob = glotlike*pglot / (bglike*pbg + glotlike*pglot);
                 if postprob < 0
@@ -492,8 +541,8 @@ for i = 1:size(recGlottis,1)
             end
 
             pimage = uint8(pimage);
-            figure(10)
-            image(pimage); title('Probability Image'); colormap(gray(255));
+%             figure(10)
+%             image(pimage); title('Probability Image'); colormap(gray(255));
 
 
 
@@ -502,9 +551,6 @@ for i = 1:size(recGlottis,1)
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %%%% LEVEL-SET SEGMENTATION %%
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            
-%             % Save data for further testing
-%             save(char("test\levelset_testdata_" + vidName + ".mat"));
 
             pbinimg = im2bw(pimage, 220/255);
             se = strel('disk',1);
@@ -566,15 +612,9 @@ for i = 1:size(recGlottis,1)
 
                 outofrange = (objctr > pmax - prevwidth*0.15) | (objctr < pmin + prevwidth*0.15);
                 toobig = (objwidth > objheight) && (objwidth > prevwidth);
-                toosmall = (length(objr) < 10);% || (length(objr) < length(rg)/10);
+                toosmall = (length(objr) < 10);
                 toowide = objwidth > 2*objheight;
-
-                val = outofrange || toosmall || toobig || touches_roi || toowide;
-                if val
-                    obj = (labels == j);
-                    pseg = pseg & ~obj;
-                end
-
+                
                 if touches_roi
                     fprintf('GRA %d: Roi collision\n', j);
                 end
@@ -589,6 +629,14 @@ for i = 1:size(recGlottis,1)
                 end
                 if toowide
                     fprintf('GRA %d: Too wide\n', j);
+                end
+                
+                
+
+                val = outofrange || toosmall || toobig || touches_roi || toowide;
+                if val
+                    obj = (labels == j);
+                    pseg = pseg & ~obj;
                 end
 
                 newproj(j,:) = {horproj, vertproj, ~val};
@@ -617,16 +665,21 @@ for i = 1:size(recGlottis,1)
                 ctr = [ctr; glotborders{j}];
             end
             for j = 1:length(ctr)
-                m = ctr(j,1);
-                n = ctr(j,2);
+                m = max(ctr(j,1), 1);
+                m = min(m, vidHeight);
+                n = max(ctr(j,2), 1);
+                n = min(n, vidWidth);
 
                 vidFrame(m,n,1) = 0;
                 vidFrame(m,n,2) = 255;
                 vidFrame(m,n,3) = 0;
             end
+            
+            ctr = fliplr(ctr);
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
-            outputContours(curframe) = {fliplr(ctr)};
+            % outputContour format: [x,y]
+            outputContours(curframe) = {ctr};
             segvideo(curframe) = {vidFrame};
 
 
@@ -766,7 +819,7 @@ fprintf('Finished!\n\n');
 
 
 %myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\seg_', vidObj.Name), 'Uncompressed AVI');
+myVideo = VideoWriter(strcat('Output_videos\master_seg_', vidObj.Name), 'Uncompressed AVI');
 myVideo.FrameRate = 30;
 open(myVideo);
 for i = 1:length(segvideo)
@@ -778,7 +831,7 @@ for i = 1:length(segvideo)
 end
 close(myVideo);
 
-save(strcat('Output_contours\', vidName, '.mat'), 'outputContours');
+save(strcat('Output_contours\master_', vidName, '.mat'), 'outputContours');
 
 
 

@@ -123,7 +123,7 @@ toc
 % histograma generado (ejes + valores en z) y  los coeficientes pca para
 % poder proyectar las muestras.
 
-save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
+% save('training_data\trained_data.mat', 'FDmatrix', 'xaxis', 'yaxis', 'gndhisto', 'coef');
 
 end
 
