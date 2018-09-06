@@ -23,12 +23,12 @@ obj = obj{2};
 obj = flipud(obj);  
 obj = fliplr(obj);  
 plot(obj(:,1), obj(:,2), 'g', 'LineWidth', 1.2), hold off
-f = getframe;
-imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\acontour_example_src.png')
+% f = getframe;
+% imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\acontour_example_src.png')
 
 
 c = contourLGD(obj, rgb2gray(s(frame).cdata), 350);
 figure(2), imshow(s(frame).cdata), hold on
 plot(c(:,1), c(:,2), 'g', 'LineWidth', 1.2), hold off
 f = getframe;
-imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\acontour_example_result.png')
+imwrite(f.cdata, 'C:\Users\lucassalazar12\Downloads\thesis_acontour_4.png')

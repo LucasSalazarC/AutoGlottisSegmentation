@@ -1,6 +1,5 @@
 %% Open and read video data
-vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\FN003_lombard.avi');
-%vidObj = VideoReader('C:\Users\lucassalazar12\Dropbox\USM\2017_2\IPD414 - Seminario DSP\Proyecto\Videos segmentados\Mal\seg_FN003.avi');
+vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\all_videos\FP003.avi');
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
