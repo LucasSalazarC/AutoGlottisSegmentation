@@ -1,10 +1,10 @@
 %% See images
 
-algorithms = {'roi_nocolor_red', 'roi_nocolor_green', 'roi_nocolor_blue', 'roi_nocolor_rgb2gray'};
+algorithms = {'original', 'master', 'variance_roi_crop', 'gie_rgb2gray'};
 
-vidName = 'FN003_lombard';
+vidName = 'FN003';
 vidPath = 'C:\Users\lucassalazar12\Videos\DSP\all_videos\';
-cfNumber = 3;
+cfNumber = 9;
 
 load( strcat('manual_segmentation\', vidName) );
 frameNumber = correctBorders{cfNumber,2}
@@ -27,7 +27,7 @@ ctr = correctBorders{cfNumber,1};
 spm = 2;
 spn = 3;
 figure(1)
-subplot(spm,spn,1), imshow(frame), hold on, plot(ctr(:,1), ctr(:,2), 'go', 'MarkerSize', 1.2), hold off, title('Correct')
+subplot(spm,spn,1), imshow(frame), hold on, plot(ctr(:,1), ctr(:,2), 'go', 'MarkerSize', 1.5), hold off, title('Correct')
 
 for i = 1:length(algorithms)
     matName = strcat('Output_contours\', algorithms{i}, '_', vidName, '.mat');
@@ -46,7 +46,10 @@ for i = 1:length(algorithms)
         elseif contains(algorithms{i}, 'blue')
             frameToShow = frame(:,:,3);
         elseif contains(algorithms{i}, 'rgb2gray')
-            frameToShow = rgb2gray(frame);
+%             frameToShow = rgb2gray(frame);
+            frameToShow = frame;
+        else
+            frameToShow = frame;
         end
         
         if ~isempty(ctr)
@@ -65,7 +68,7 @@ end
 
 figure(2)
 ctr = correctBorders{cfNumber,1};
-imshow(frame), hold on, plot(ctr(:,1), ctr(:,2), 'go', 'MarkerSize', 1.2), hold off
+imshow(frame), hold on, plot(ctr(:,1), ctr(:,2), 'go', 'MarkerSize', 1.5), hold off
 f = getframe;
 imwrite(f.cdata, strcat('C:\Users\lucassalazar12\Downloads\', vidName, '_e', num2str(cfNumber), '_correct.png' ) );
 
@@ -86,11 +89,14 @@ for i = 1:length(algorithms)
         elseif contains(algorithms{i}, 'blue')
             frameToShow = frame(:,:,3);
         elseif contains(algorithms{i}, 'rgb2gray')
-            frameToShow = rgb2gray(frame);
+%             frameToShow = rgb2gray(frame);
+            frameToShow = frame;
+        else
+            frameToShow = frame;
         end
         
         if ~isempty(ctr)
-            imshow(frameToShow), hold on, plot(ctr(:,1), ctr(:,2), 'go', 'MarkerSize', 1.2), hold off
+            imshow(frameToShow), hold on, plot(ctr(:,1), ctr(:,2), 'go', 'MarkerSize', 1.5), hold off
             f = getframe;
             imwrite(f.cdata, strcat('C:\Users\lucassalazar12\Downloads\', vidName, '_e', num2str(cfNumber), '_', algorithms{i}, '.png' ) );
 %         end

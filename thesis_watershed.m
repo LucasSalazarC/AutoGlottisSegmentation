@@ -74,16 +74,17 @@ figure(7), imshow(bgm), title('Watershed ridge lines (bgm)')
 % imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\watershed_ex_ridge.png')
 
 % Watershed
-gradmag2 = imimposemin(gradmag, bgm | fgm4);
+% gradmag2 = imimposemin(gradmag, bgm | fgm4);
+gradmag2 = imimposemin(gradmag, fgm4);
 figure(9), imshow(gradmag2,[])
 f = getframe;
-imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\watershed_ex_gradmin.png')
+% imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\watershed_ex_gradmin.png')
 
 L = watershed(gradmag2);
 Lrgb = label2rgb(L);
 figure(8), imshow(Lrgb)
 f = getframe;
-imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\watershed_ex_result.png')
+% imwrite(f.cdata, 'C:\Users\lucassalazar12\Dropbox\USM\2018_1\Memoria\Latex\images\watershed_ex_result.png')
 
 
 
