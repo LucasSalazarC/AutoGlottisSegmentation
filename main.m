@@ -21,7 +21,7 @@ for j = 1:length(vidList)
     frames = cell2mat(correctBorders(end,2)) + 44;
     
     tic
-    [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef);
+    [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef, true);
     time = toc;
 
     dice_arr = [];

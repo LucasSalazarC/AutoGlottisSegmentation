@@ -1,10 +1,9 @@
-
-load('test\lgd_testdata2.mat');
+load('test\lgd_testdata.mat');
 
 % Get variables
 B = bestB;
-Img = rgb2gray(s(i).cdata);
-%numIter = 300;
+Img = lgdImage;
+NumIter = 1000;
 
 binShape = false(size(Img));
 for i = 1:length(B)
@@ -19,11 +18,10 @@ phi = 2*c0*binShape - c0;
 
 Img = double(Img(:,:,1));
 
-NumIter = 1000; %iterations
-timestep=0.5; %time step
-mu=0.15/timestep;% level set regularization term, please refer to "Chunming Li and et al. Level Set Evolution Without Re-initialization: A New Variational Formulation, CVPR 2005"
-sigma = 2.5;%size of kernel
-epsilon = 0.6;
+timestep=0.4; %time step
+mu=0.11/timestep;% level set regularization term, please refer to "Chunming Li and et al. Level Set Evolution Without Re-initialization: A New Variational Formulation, CVPR 2005"
+sigma = 1.5;%size of kernel
+epsilon = 0.65;
 %c0 = 2; % the constant value 
 lambda1=1;%outer weight, please refer to "Chunming Li and et al,  Minimization of Region-Scalable Fitting Energy for Image Segmentation, IEEE Trans. Image Processing, vol. 17 (10), pp. 1940-1949, 2008"
 lambda2=1;%inner weight
@@ -70,15 +68,28 @@ for iter = 1:NumIter
         pause(0.02);
     end
     
-    if meanareastd < 0.5
+    if meanareastd < 0.4
         c = contourc(phi, [0 0]);
         c = transpose(c);
         
         outliers = isoutlier(c);
         outliers = outliers(:,1) | outliers(:,2);
         c = c(~outliers, :);
+        
+        fprintf('\nContour LGD completed in %d iterations!\n', iter);
         break
     end
 
 end
+
+if iter == NumIter
+    fprintf('\nRan out of iterations\n');
+    c = contourc(phi, [0 0]);
+    c = transpose(c);
+
+    outliers = isoutlier(c);
+    outliers = outliers(:,1) | outliers(:,2);
+    c = c(~outliers, :);
+end
+
 toc

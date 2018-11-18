@@ -1,4 +1,4 @@
-function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef)
+function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef, saveVideo)
 
 % Inputs:
 %   frames -> Numero de cuadros a segmentar
@@ -235,6 +235,10 @@ for i = 1:length(s)
         bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
         bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
         
+        
+        %%% TESTING
+        %save('test\lgd_testdata2', 'bestB', 'lgdImage');
+        
         % Apply contour adjusting algorithm
         fprintf('Ajustando contorno...\n');
         c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
@@ -369,7 +373,9 @@ pause(waitseg)
 frameflag = false(length(s), 1);
 
 % To save video frames
-segvideo = cell(length(s),1);
+if saveVideo 
+    segvideo = cell(length(s),1);
+end
 outputContours = cell(frames,1);
 
 % Sort by FD dissimilarity
@@ -406,7 +412,9 @@ for i = 1:size(recGlottis,1)
         vidFrame(m,n,2) = 255;
         vidFrame(m,n,3) = 0;
     end
-    segvideo(prevframe) = {vidFrame};
+    if saveVideo
+        segvideo(prevframe) = {vidFrame};
+    end
     outputContours(prevframe) = {border};
     
     fprintf('\nBeginning with frame %d...\n', prevframe);
@@ -448,7 +456,9 @@ for i = 1:size(recGlottis,1)
             if sum(sum(intersection)) == 0
                 for j = 1:length(cycleFrames)
                     outputContours(cycleFrames(j)) = {[]};
-                    segvideo(cycleFrames(j)) = {s(cycleFrames(j)).cdata};
+                    if saveVideo
+                        segvideo(cycleFrames(j)) = {s(cycleFrames(j)).cdata};
+                    end
                 end
                 fprintf('Collision detected. Erasing progress of this cycle...\n\n');
                 break
@@ -759,7 +769,9 @@ for i = 1:size(recGlottis,1)
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
             outputContours(curframe) = {ctr};
-            segvideo(curframe) = {vidFrame};
+            if saveVideo
+                segvideo(curframe) = {vidFrame};
+            end
 
 
 
@@ -896,19 +908,20 @@ fprintf('Finished!\n\n');
 
 %% WRITE VIDEO
 
-
-%myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\variance_roi_crop_seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo.FrameRate = 30;
-open(myVideo);
-for i = 1:length(segvideo)
-    if length(segvideo{i}) == 0
-        writeVideo(myVideo, s(i).cdata);
-    else
-        writeVideo(myVideo, segvideo{i});
+if saveVideo
+    %myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
+    myVideo = VideoWriter(strcat('Output_videos\variance_roi_crop_seg_', vidObj.Name), 'Uncompressed AVI');
+    myVideo.FrameRate = 30;
+    open(myVideo);
+    for i = 1:length(segvideo)
+        if length(segvideo{i}) == 0
+            writeVideo(myVideo, s(i).cdata);
+        else
+            writeVideo(myVideo, segvideo{i});
+        end
     end
+    close(myVideo);
 end
-close(myVideo);
 
 save(strcat('Output_contours\variance_roi_crop_', vidName, '.mat'), 'outputContours');
 
