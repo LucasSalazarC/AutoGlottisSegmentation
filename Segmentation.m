@@ -1,4 +1,4 @@
-function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef, saveVideo)
+function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDmatrix, gndhisto, xaxis, yaxis, coef, saveVideo, saveName)
 
 % Inputs:
 %   frames -> Numero de cuadros a segmentar
@@ -557,7 +557,7 @@ for i = 1:size(recGlottis,1)
                 rpts = [c(roi) r(roi)];     % Puntos dentro de la ROI, pero fuera de la glotis
             end
 
-            roimask = ~shape;    % Sólo dentro de la glotis
+            roimask = ~shape;    % Sï¿½lo dentro de la glotis
             for j = 1:length(rpts)
                 roimask(rpts(j,2), rpts(j,1)) = true;
             end
@@ -595,7 +595,7 @@ for i = 1:size(recGlottis,1)
             bpoints = cell2mat(histos(:,1));
 
             % Closest base points for each ROI point
-            rpts = [rpts; [cg rg]];    % Ahora sí es la ROI entera, incluyendo glotis
+            rpts = [rpts; [cg rg]];    % Ahora sï¿½ es la ROI entera, incluyendo glotis
             idxs = dsearchn(bpoints, rpts);
 
             % Calculate probability image
@@ -923,7 +923,8 @@ if saveVideo
     close(myVideo);
 end
 
-save(strcat('Output_contours\variance_roi_crop_', vidName, '.mat'), 'outputContours');
+%save(strcat('Output_contours/variance_roi_crop_', vidName, '.mat'), 'outputContours');
+save(strcat('Output_contours/', saveName, '.mat'), 'outputContours');
 
 
 end
