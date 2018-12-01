@@ -12,7 +12,7 @@ function [outputContours,vidSize] =  Segmentation(vidName, vidPath, frames, FDma
 %% Open and read video data
 % vidName = 'FN002_adapt';
 % vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
-vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
+vidObj = VideoReader( [vidPath  vidName] );
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);

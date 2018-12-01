@@ -1,10 +1,10 @@
-load('Output_contours/FN001 - R03.mat');
+load('Output_contours/2kPa, 0.01 shim.mat');
 
-vidName = 'FN001';
-vidPath = '/run/user/1000/gvfs/smb-share:server=vplab-storage.local,share=voicelab/Users/U00 - Common/Current Project/P003- P1151077/Data/FN001/L.E01/S01.Pro/R03- Naso i/';
-frames = 44;
+vidName = '2kPa, 0.01 shim.mp4';
+vidPath = '/run/user/1000/gvfs/smb-share:server=vplab-storage.local,share=voicelab/Users/U00 - Common/Current Project/P010- HSV Clarkson/Contact Stress/';
+frames = 87;
 
-vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
+vidObj = VideoReader( [vidPath vidName ]);
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
