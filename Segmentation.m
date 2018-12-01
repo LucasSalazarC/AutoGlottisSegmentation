@@ -378,6 +378,10 @@ if saveVideo
 end
 outputContours = cell(frames,1);
 
+% This one will contain an array of cells for each frame with sub-borders
+% in case the glottis is split
+separatedContours = cell(frames,1);
+
 % Sort by FD dissimilarity
 recGlottis = sortrows(recGlottis, 4);
 
@@ -415,7 +419,8 @@ for i = 1:size(recGlottis,1)
     if saveVideo
         segvideo(prevframe) = {vidFrame};
     end
-    outputContours(prevframe) = {border};
+    outputContours(prevframe) = { border };
+    separatedContours(prevframe) = { fliplr(border) };
     
     fprintf('\nBeginning with frame %d...\n', prevframe);
     
@@ -769,6 +774,8 @@ for i = 1:size(recGlottis,1)
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
             outputContours(curframe) = {ctr};
+            separatedContours(curframe) = {glotborders};
+            
             if saveVideo
                 segvideo(curframe) = {vidFrame};
             end
@@ -923,8 +930,55 @@ if saveVideo
     close(myVideo);
 end
 
-%save(strcat('Output_contours/variance_roi_crop_', vidName, '.mat'), 'outputContours');
-save(strcat('Output_contours/', saveName, '.mat'), 'outputContours');
+
+
+% Correct and reorder outputContours
+outputContours = separatedContours;
+borderArray = cell( length(outputContours), 1 );
+for i = 1:length(outputContours)
+    
+    if ~isempty(outputContours{i})
+        correctedBorders = {};
+        
+        if iscell( outputContours{i} )
+            
+            for j = 1:length( outputContours{i} )
+                objectBorder = outputContours{i}{j};
+
+                for k = 1:length(objectBorder)
+                    objectBorder(k,1) = max(objectBorder(k,1), 1);
+                    objectBorder(k,1) = min(objectBorder(k,1), vidHeight);
+                    objectBorder(k,2) = max(objectBorder(k,2), 1);
+                    objectBorder(k,2) = min(objectBorder(k,2), vidWidth);
+                end
+
+                correctedBorders(end+1) = { fliplr(objectBorder) };
+            end
+            
+        else
+            objectBorder = outputContours{i};
+
+            for k = 1:length(objectBorder)
+                objectBorder(k,1) = max(objectBorder(k,1), 1);
+                objectBorder(k,1) = min(objectBorder(k,1), vidHeight);
+                objectBorder(k,2) = max(objectBorder(k,2), 1);
+                objectBorder(k,2) = min(objectBorder(k,2), vidWidth);
+            end
+
+            correctedBorders(end+1) = { fliplr(objectBorder) };
+        end
+        
+        borderArray(i) = { correctedBorders };
+    end
+end
+
+outputContours = borderArray;
+
+vidSize = [];
+vidSize.Height = vidHeight;
+vidSize.Width = vidWidth;
+
+save(strcat('Output_contours/', saveName, '.mat'), 'outputContours', 'vidSize');
 
 
 end
