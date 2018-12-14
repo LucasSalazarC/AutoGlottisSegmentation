@@ -1,6 +1,10 @@
 %% Open and read video data
-vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\FN003_lombard.avi');
-%vidObj = VideoReader('C:\Users\lucassalazar12\Dropbox\USM\2017_2\IPD414 - Seminario DSP\Proyecto\Videos segmentados\Mal\seg_FN003.avi');
+
+vidName = 'FN001.avi';
+vidPath = [ '/run/user/1000/gvfs/smb-share:server=vplab-storage.local,share=voicelab/Users/U00 - Common/'...
+                   'Current Project/P003- P1151077/Data/FN001/L.E01/S01.Pro/R14 - Rigido  i/' ];
+               
+vidObj = VideoReader( [ vidPath vidName ] );
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
