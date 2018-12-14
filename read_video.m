@@ -1,5 +1,5 @@
 %% Open and read video data
-vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\all_videos\FP003.avi');
+vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\Validación - artificiales\copy_2kPa, 0.00 shim.mp4.avi');
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
