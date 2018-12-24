@@ -3,6 +3,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 clear
+addpath('./functions');
 
 % Suppress JavaFrame warning
 id = 'MATLAB:HandleGraphics:ObsoletedProperty:JavaFrame';

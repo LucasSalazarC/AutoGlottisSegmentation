@@ -1,37 +1,34 @@
-
-load('training_data\trained_data.mat');
+function [outputContours, glottisAreas, vidMetaData] =  Segmentation(trainingData, config)
 
 % Inputs:
-%   frames -> Numero de cuadros a segmentar
-%   FDmatrix -> Cada fila es un descriptor de fourier.
-%   gndhisto -> Histograma 2D de GND
-%   xaxis -> Eje x del histograma (primera componente)
-%   yaxis -> Eje y del histograma (segunda componente)
-%   coef -> Coeficientes PCA para reducir dimensionalidad de GND
+%   config.vidName -> Video name, without extension. Must be AVI
+%   config.vidPath -> Path to video, with slash at the end
+%   config.frames -> Numero of frames to process
+%   config.saveVideo -> Bool to indicate if we want to save a copy of the
+%                       video with the contour drawed on it 
+%   config.saveName -> Name of the output .mat containing the segmented
+%                      border to be saved in ./Output_contours/
+%   trainingData.FDmatrix -> Each row is a fourier descriptor
+%   trainingData.gndhisto -> 2D GND Histogram
+%   trainingData.xaxis -> Histogram x axis (first component)
+%   trainingData.yaxis -> Histogram y axis (second component)
+%   trainingData.coef -> PCA coefficients to reduce GND dimensionality
 
 
 %% Open and read video data
-vidName = 'FN001';
-if contains(vidName,'pre') || contains(vidName,'lombard') || contains(vidName,'adapt')
-    vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Lombard_video_8k fps\';
-else
-    vidPath = 'C:\Users\lucassalazar12\Videos\DSP\Fondecyt videos 10k fps\';
-end
-vidObj = VideoReader(strcat(vidPath, vidName, '.avi'));
+vidObj = VideoReader( [config.vidPath  config.vidName] );
 vidHeight = vidObj.Height;
 vidWidth = vidObj.Width;
 s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
-vidSize = [vidHeight vidWidth];
-
-frames = 100;
+vidMetaData = [vidHeight vidWidth];
 
 k = 1;
 startTime = 0;
 vidObj.CurrentTime = startTime;
-endTime = startTime + + frames/vidObj.FrameRate;
+endTime = startTime + config.frames/vidObj.FrameRate;
 while vidObj.CurrentTime <= endTime
-    s(k).cdata = readFrame(vidObj);         % Cuadros del video (imagenes)
+    s(k).cdata = readFrame(vidObj);
     k = k+1;
 end
 
@@ -39,47 +36,75 @@ end
 
 %% Processing: Recognition part
 
-[nImages,~] = size(FDmatrix);       % Number of training images
+[nImages,~] = size(trainingData.FDmatrix);       % Number of training images
 
 fdthresh = 6;        % Fourier Descriptor Dissimilarity threshold
 gndthresh = 0.4;        % GND threshold
 roithresh = 0.6;
 
 % Find maximum x-value for probability > gndthresh
-for i = size(gndhisto,2):-1:1
-    colmax = max(gndhisto(:,i));
+for i = size(trainingData.gndhisto,2):-1:1
+    colmax = max(trainingData.gndhisto(:,i));
     
     if colmax >= 0.99
         break
     end
 end
 
-gnd_max_x = xaxis(i);
+gnd_max_x = trainingData.xaxis(i);
 
-% Celda para guardar contornos reconocidos de glotis
+% Cell to save recognized glottis borders
 recGlottis = {};
 
 waitsm = 0;
 waitlg = 0;
 waitseg = 0;
 
+% To save initial ROI
+roiToSave = [];
+
 
 for i = 1:length(s)
     fprintf('\n-----------------------------------------------\n----------------------------------------------\n');
-    fprintf('Analizando cuadro %d\n', i);
+    fprintf('Analyzing frame %d\n', i);
     
-    % Para guardar indice del potencial borde de glotis
+    % To save potential glottis border index
     thrindex = 0;
     bestDsim = inf;
     
     
     % Get ROI based on pixel variance over 100 frames. Recalculate every 100 frames
     if i == 1 || ( mod(i,100) == 1 && length(s) - i > 99 )
-        [initialRoiMask, initialRoiBorder, roiObj] = variance_roi(s, 1);
-        notInRoi = imcomplement(initialRoiMask);
+        [tempInitialRoiMask, tempInitialRoiBorder, tempRoiObj] = variance_roi(s, i);
+
+        if tempRoiObj == -1
+            if i == 1
+                fprintf('ROI calculation Failed\n');
+                recGlottis = [];
+                break
+            end
+            % If roi calculation fails but a ROI was already calculated previously, use the previous one
+        else
+            initialRoiMask = tempInitialRoiMask;
+            initialRoiBorder = tempInitialRoiBorder;
+            roiObj = tempRoiObj;
+            notInRoi = imcomplement(initialRoiMask);
+            
+            % Save ROI
+            if i == 1
+                % format [y,x]
+                roiMinTemp = min(initialRoiBorder);
+                roiMaxTemp = max(initialRoiBorder);
+                
+                roiToSave.yRange = [ roiMinTemp(1) roiMaxTemp(1) ];
+                roiToSave.xRange = [ roiMinTemp(2) roiMaxTemp(2) ];
+                
+            end
+        end
 
         figure(9), imshow(imoverlay(s(1).cdata, roiObj, [0 1 0])), hold on
         plot(initialRoiBorder(:,2), initialRoiBorder(:,1), 'y*', 'MarkerSize', 1), hold off
+
     end
     
     
@@ -96,11 +121,11 @@ for i = 1:length(s)
         B = fliplr(B);                  % x -> columna 1, y -> columna 2
 
         % Filter shapes not touching the edge of the image
-        if check_out_of_bounds(B, vidSize, 'image')
+        if check_out_of_bounds(B, vidMetaData, 'image')
             continue
         end
 
-        objectMask = false(vidSize);
+        objectMask = false(vidMetaData);
         for j = 1:length(B)
             objectMask( B(j,2), B(j,1) ) = true;
         end
@@ -114,16 +139,16 @@ for i = 1:length(s)
 %     image(s(i).cdata)
 %     hold on
     
-    % Umbral aumenta de 1 hasta 80. Se buscan figuras con forma de glotis
+    % Threshold increases from 1 to 80. Search for glottis-like figures
     for j = 1:80
         threshframe = im2bw(s(i).cdata, j/255);
         threshframe = imcomplement(threshframe);
 
-        % Apertura
+        % Opening
         se = strel('disk',1);
         openedframe = imopen(threshframe,se);
         
-        % Bordes
+        % Borders
         allBorders = bwboundaries(openedframe, 'noholes');
         for k = 1:length(allBorders)
             B = allBorders{k};              % Clockwise order
@@ -139,7 +164,7 @@ for i = 1:length(s)
             end
 
             
-            objectMask = false(vidSize);
+            objectMask = false(vidMetaData);
             for n = 1:length(B)
                 objectMask( B(n,2), B(n,1) ) = true;
             end
@@ -165,14 +190,13 @@ for i = 1:length(s)
                 continue
             end
          
-            % Calcular descriptores de fourier
+            % Calculate Fourier descriptors
             [FD,~,~] = fourierDescriptors(B,30);
             
-            % Comparar con los FD de entrenamiento (norma de la diferencia
-            % al cuadrado)
+            % Compare with training FD (squared norm)
             normMean = 0;
             for p = 1:nImages
-                normMean = normMean + norm(FD.' - FDmatrix(p,:))^2;
+                normMean = normMean + norm(FD.' - trainingData.FDmatrix(p,:))^2;
             end
             normMean = normMean / nImages;
             
@@ -189,7 +213,7 @@ for i = 1:length(s)
 %             unplot
         end
         
-        % Evaluar potenciales bordes, si es que hay
+        % Evaluate potantial borders, if there are any
 %         if bindex ~= 0
 %             fprintf('Potencial borde de glotis encontrado!\n');
 %             break
@@ -197,9 +221,9 @@ for i = 1:length(s)
     end
     
     if thrindex(1) == 0 || bestDsim > fdthresh
-        fprintf('No se encontraron potenciales bordes de glotis en este cuadro\n\n');
+        fprintf('No potential glottis borders were found in this frame\n\n');
     else      
-        fprintf('Potencial borde de glotis encontrado!\n');
+        fprintf('Potential glottis border found!\n');
         fprintf('Threshold = %d, Dissimilarity = %f\n', thrindex, bestDsim);
         
         figure(1)
@@ -214,36 +238,40 @@ for i = 1:length(s)
 %         % Testing purposes
 %         save('test\lgd_testdata2.mat');
         
-%         % format [y,x]
-%         roiMinCoord = min(initialRoiBorder);
-%         roiMaxCoord = max(initialRoiBorder);
-% 
-%         origImage = rgb2gray(s(i).cdata);
-%         
-%         % Crop image to ROI
-%         lgdImage = origImage(roiMinCoord(1):roiMaxCoord(1),roiMinCoord(2):roiMaxCoord(2));
-% 
-%         % Change coordinates to cropped image
-%         bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
-%         bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
-%         
-%         % Apply contour adjusting algorithm
-%         fprintf('Ajustando contorno...\n');
-%         c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
-%         
-%         % Return to original coordinates
-%         c(:,1) = c(:,1) + roiMinCoord(2) - 1;
-%         c(:,2) = c(:,2) + roiMinCoord(1) - 1;
-%         
-%         % Fitler out of bounds
-%         if check_out_of_bounds(c, size(lgdImage), 'image')
-%             fprintf('Not in ROI; Out of bounds. False Region\n');
-%             continue
-%         end
+        % format [y,x]
+        roiMinCoord = min(initialRoiBorder);
+        roiMaxCoord = max(initialRoiBorder);
+
+        origImage = rgb2gray(s(i).cdata);
+        
+        % Crop image to ROI
+        lgdImage = origImage(roiMinCoord(1):roiMaxCoord(1),roiMinCoord(2):roiMaxCoord(2));
+
+        % Change coordinates to cropped image
+        bestB(:,1) = bestB(:,1) - roiMinCoord(2) + 1;
+        bestB(:,2) = bestB(:,2) - roiMinCoord(1) + 1;
+        
+        
+        %%% TESTING
+        %save('test\lgd_testdata2', 'bestB', 'lgdImage');
         
         % Apply contour adjusting algorithm
-        fprintf('Ajustando contorno...\n');
-        c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
+        fprintf('Adjusting contour...\n');
+        c = contourLGD(bestB, lgdImage, 350);       % Variable c es el contorno
+        
+        % Return to original coordinates
+        c(:,1) = c(:,1) + roiMinCoord(2) - 1;
+        c(:,2) = c(:,2) + roiMinCoord(1) - 1;
+        
+        % Fitler out of bounds
+        if check_out_of_bounds(c, size(lgdImage), 'image')
+            fprintf('Not in ROI; Out of bounds. False Region\n');
+            continue
+        end
+        
+%         % Apply contour adjusting algorithm
+%         fprintf('Ajustando contorno...\n');
+%         c = contourLGD(bestB, rgb2gray(s(i).cdata), 350);       % Variable c es el contorno
         
         plot(c(:,1), c(:,2), 'g*', 'MarkerSize', 0.5)
         
@@ -260,10 +288,14 @@ for i = 1:length(s)
             continue
         end
         
-        objectMask = false(vidSize);
+        objectMask = false(vidMetaData);
         cRound = round(c);
         for n = 1:length(cRound)
-            objectMask( cRound(n,2), cRound(n,1) ) = true;
+            cm = max(cRound(n,2), 1);
+            cm = min(cm, vidHeight);
+            cn = max(cRound(n,1), 1);
+            cn = min(cn, vidWidth);
+            objectMask( cm, cn ) = true;
         end
         objectMask = imfill(objectMask, 'holes');
         
@@ -278,32 +310,36 @@ for i = 1:length(s)
         end
         
         
-        % Calcular y evaluar de nuevo Descriptores de Fourier
+        % Calculate and evaluate Fourier descriptors again
         [FD,idxlow,idxhigh] = fourierDescriptors(c,30);
         normMean = 0;
         for p = 1:nImages
-            normMean = normMean + norm(FD.' - FDmatrix(p,:))^2;
+            normMean = normMean + norm(FD.' - trainingData.FDmatrix(p,:))^2;
         end
         normMean = normMean / nImages;
 
         fprintf('Dissimilarity: %f\n', normMean);
         pause(waitlg);
         if normMean < fdthresh
-            fprintf('Cuadro %d: Forma de glotis confirmada! Evaluando GND...\n\n', i);
+            fprintf('Frame %d: Glottis shape confirmed! Evaluating GND...\n\n', i);
             pause(waitsm);
             
-            % Generar imagen binaria con el contorno
+            % Generate binary image from the contour
             binShape = false(size(threshframe));
             for j = 1:length(c)
-                binShape(round(c(j,2)), round(c(j,1))) = true;
+                cm = max(round(c(j,2)), 1);
+                cm = min(cm, vidHeight);
+                cn = max(round(c(j,1)), 1);
+                cn = min(cn, vidWidth);
+                binShape(cm, cn) = true;
             end
             binShape = imfill(binShape, 'holes');
             binShape = imcomplement(binShape);
             
-            % Calcular y descomponer GND con coeficientes PCA del
-            % entrenamiento. Luego mapear a histograma
+            % Calculate and reduce GND with training PCA coefficients.
+            % Then, map to histogram
             GND = getGND(s(i).cdata, binShape, round(c), idxlow, idxhigh);
-            decomp = GND * coef
+            decomp = GND * trainingData.coef
             
             % decomp(1) is approximately the norm of average intensity difference between the inside
             % and outside of the contour. If it is high enough, we can just skip comparisons and
@@ -312,17 +348,17 @@ for i = 1:length(s)
                 prob = 0.99;
                 normMean = 0.01 + normMean/100;
             else
-                [~,xindex] = min(abs(xaxis-decomp(1)));
-                [~,yindex] = min(abs(yaxis-decomp(2)));
-                prob = gndhisto(yindex,xindex);
+                [~,xindex] = min(abs(trainingData.xaxis-decomp(1)));
+                [~,yindex] = min(abs(trainingData.yaxis-decomp(2)));
+                prob = trainingData.gndhisto(yindex,xindex);
             end
             
             g = sprintf('%f ', GND);
             fprintf('GND %d: %s\n', i, g);
-            fprintf('Probabilidad de glotis = %f\n\n', prob);
+            fprintf('Glottis probability = %f\n\n', prob);
             
             if prob > gndthresh
-                fprintf('Glotis confirmada!\n\n');
+                fprintf('Glottis confirmed!\n\n');
                 recGlottis(end+1,:) = {i, c, binShape, normMean, prob};
                 pause(waitlg);
             else
@@ -337,7 +373,7 @@ end
 
 if isempty(recGlottis)
     fprintf('Algorithm failed. No glottis found\n');
-    outputContours = cell(frames,1);
+    outputContours = cell(config.frames,1);
     return
 end
 
@@ -353,8 +389,17 @@ pause(waitseg)
 frameflag = false(length(s), 1);
 
 % To save video frames
-segvideo = cell(length(s),1);
-outputContours = cell(frames,1);
+if config.saveVideo 
+    segvideo = cell(length(s),1);
+end
+outputContours = cell(config.frames,1);
+
+% This one will contain an array of cells for each frame with sub-borders
+% in case the glottis is split
+separatedContours = cell(config.frames,1);
+
+% To save areas, and find frame with maximum glottal opening
+glottisAreas = zeros(config.frames, 1);
 
 % Sort by FD dissimilarity
 recGlottis = sortrows(recGlottis, 4);
@@ -369,10 +414,10 @@ for i = 1:size(recGlottis,1)
     % To keep track of segmented frames in each cycle
     cycleFrames = [];   
     
-    % Datos de contorno con menor valor de disimilitud
+    % Data of the border with the lowest dissimilarity
     prevframe = cell2mat(recGlottis(i,1));
     border = round(cell2mat(recGlottis(i,2)));
-    shape = cell2mat(recGlottis(i,3));    % Glotis son ceros, el resto es 1
+    shape = cell2mat(recGlottis(i,3));    % Glottis are 0s, the rest is 1
     
     % Starting frame is already segmented
     frameflag(prevframe) = true;
@@ -381,15 +426,21 @@ for i = 1:size(recGlottis,1)
     % Save starting frame
     vidFrame = s(prevframe).cdata;
     for j = 1:length(border)
-        m = border(j,2);
-        n = border(j,1);
+        m = max(border(j,2), 1);
+        m = min(m, vidHeight);
+        n = max(border(j,1), 1);
+        n = min(n, vidWidth);
 
         vidFrame(m,n,1) = 0;
         vidFrame(m,n,2) = 255;
         vidFrame(m,n,3) = 0;
     end
-    segvideo(prevframe) = {vidFrame};
-    outputContours(prevframe) = {border};
+    if config.saveVideo
+        segvideo(prevframe) = {vidFrame};
+    end
+    outputContours(prevframe) = { border };
+    separatedContours(prevframe) = { fliplr(border) };
+    glottisAreas(prevframe) = sum(sum( ~shape ));
     
     fprintf('\nBeginning with frame %d...\n', prevframe);
     
@@ -415,7 +466,11 @@ for i = 1:size(recGlottis,1)
             curBorder = cell2mat(outputContours(curframe));
             curMask = false(size(shape));
             for j = 1:length(curBorder)
-                curMask( curBorder(j,2), curBorder(j,1) ) = true;
+                cmm = max(curBorder(j,2), 1);
+                cmm = min(cmm, vidHeight);
+                cmn = max(curBorder(j,1), 1);
+                cmn = min(cmn, vidWidth);
+                curMask( cmm, cmn ) = true;
             end
             curMask = imfill(curMask, 'holes');
             
@@ -425,8 +480,14 @@ for i = 1:size(recGlottis,1)
             % segmentation was correct and discard our progress in the current cycle.
             if sum(sum(intersection)) == 0
                 for j = 1:length(cycleFrames)
+                    
                     outputContours(cycleFrames(j)) = {[]};
-                    segvideo(cycleFrames(j)) = {s(cycleFrames(j)).cdata};
+                    separatedContours(cycleFrames(j)) = {[]};
+                    glottisAreas(cycleFrames(j)) = 0;
+                    
+                    if config.saveVideo
+                        segvideo(cycleFrames(j)) = {s(cycleFrames(j)).cdata};
+                    end
                 end
                 fprintf('Collision detected. Erasing progress of this cycle...\n\n');
                 break
@@ -487,7 +548,7 @@ for i = 1:size(recGlottis,1)
                 cini = min(cg) - 4;
                 cfin = max(cg) + 4;
 
-                % Que no se pasen de los bordes de la imagen
+                % Don't go beyond the image boundaries
                 if rini < 1
                     rini = 1;
                 end
@@ -502,7 +563,7 @@ for i = 1:size(recGlottis,1)
                     cfin = maxc;
                 end
 
-                % rpts: puntos dentro de la roi, pero fuera de la glotis
+                % rpts: points inside the roi, but outside the glottis
                 roilen = (rfin-rini+1) * (cfin-cini+1) - length(rg);
                 rpts = zeros(roilen,2);
 
@@ -519,13 +580,13 @@ for i = 1:size(recGlottis,1)
             else
                 [r,c] = find(shape == true);
 
-                % Calcular ROI: Distancia Mahalanobis 4.5
+                % Calculate ROI: Mahalanobis distance 4.5
                 roi = rangesearch([r c], pixMean, 4.5, 'Distance', 'mahalanobis', 'Cov', pixCov);
                 roi = cell2mat(roi);
-                rpts = [c(roi) r(roi)];     % Puntos dentro de la ROI, pero fuera de la glotis
+                rpts = [c(roi) r(roi)];     % Points inside the ROI, but outside the glottis
             end
 
-            roimask = ~shape;    % Sólo dentro de la glotis
+            roimask = ~shape;   % Only inside the glottis
             for j = 1:length(rpts)
                 roimask(rpts(j,2), rpts(j,1)) = true;
             end
@@ -550,7 +611,7 @@ for i = 1:size(recGlottis,1)
 %             % Save data for further testing
 %             save(char("test\pimage_testdata_new_" + vidName + ".mat"));
 
-            % Calcular histograma 3d para 8 puntos en el borde
+            % Calculate 3D hsitogram for N points in the border
             % Mapping to quantize colors
             quantize = 2;
             vecmap = 0:255;
@@ -563,7 +624,7 @@ for i = 1:size(recGlottis,1)
             bpoints = cell2mat(histos(:,1));
 
             % Closest base points for each ROI point
-            rpts = [rpts; [cg rg]];    % Ahora sí es la ROI entera, incluyendo glotis
+            rpts = [rpts; [cg rg]];    % Now it's the entire ROI, including the glottis
             idxs = dsearchn(bpoints, rpts);
 
             % Calculate probability image
@@ -723,8 +784,10 @@ for i = 1:size(recGlottis,1)
                 ctr = [ctr; glotborders{j}];
             end
             for j = 1:length(ctr)
-                m = ctr(j,1);
-                n = ctr(j,2);
+                m = max(ctr(j,1), 1);
+                m = min(m, vidHeight);
+                n = max(ctr(j,2), 1);
+                n = min(n, vidWidth);
 
                 vidFrame(m,n,1) = 0;
                 vidFrame(m,n,2) = 255;
@@ -735,7 +798,12 @@ for i = 1:size(recGlottis,1)
 
             % ctr format: Col1 -> y, Col2 -> x. Apply fliplr
             outputContours(curframe) = {ctr};
-            segvideo(curframe) = {vidFrame};
+            separatedContours(curframe) = {glotborders};
+            glottisAreas(curframe) = sum(sum( pseg ));
+            
+            if config.saveVideo
+                segvideo(curframe) = {vidFrame};
+            end
 
 
 
@@ -869,26 +937,180 @@ fprintf('Finished!\n\n');
 
 
 
+%% POST-PROCESSING (?)
 
-%% WRITE VIDEO
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Correct and reorder outputContours %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+outputContours = separatedContours;
+borderArray = cell( length(outputContours), 1 );
+for i = 1:length(outputContours)
+    
+    if ~isempty(outputContours{i})
+        correctedBorders = {};
+        
+        if iscell( outputContours{i} )
+            
+            for j = 1:length( outputContours{i} )
+                objectBorder = outputContours{i}{j};
 
-%myVideo = VideoWriter(strcat('home/lucas/Downloads/seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo = VideoWriter(strcat('Output_videos\variance_roi_seg_', vidObj.Name), 'Uncompressed AVI');
-myVideo.FrameRate = 30;
-open(myVideo);
-for i = 1:length(segvideo)
-    if length(segvideo{i}) == 0
-        writeVideo(myVideo, s(i).cdata);
-    else
-        writeVideo(myVideo, segvideo{i});
+                for k = 1:length(objectBorder)
+                    objectBorder(k,1) = max(objectBorder(k,1), 1);
+                    objectBorder(k,1) = min(objectBorder(k,1), vidHeight);
+                    objectBorder(k,2) = max(objectBorder(k,2), 1);
+                    objectBorder(k,2) = min(objectBorder(k,2), vidWidth);
+                end
+
+                correctedBorders(end+1) = { fliplr(objectBorder) };
+            end
+            
+        else
+            objectBorder = outputContours{i};
+
+            for k = 1:length(objectBorder)
+                objectBorder(k,1) = max(objectBorder(k,1), 1);
+                objectBorder(k,1) = min(objectBorder(k,1), vidHeight);
+                objectBorder(k,2) = max(objectBorder(k,2), 1);
+                objectBorder(k,2) = min(objectBorder(k,2), vidWidth);
+            end
+
+            correctedBorders(end+1) = { fliplr(objectBorder) };
+        end
+        
+        borderArray(i) = { correctedBorders };
     end
 end
-close(myVideo);
 
-save(strcat('Output_contours\variance_roi_', vidName, '.mat'), 'outputContours');
+outputContours = borderArray;
 
 
+
+%%%%%%%%%%%%%%%%%%%%%
+% Save metadata (?) %
+%%%%%%%%%%%%%%%%%%%%%
+vidMetaData = [];
+vidMetaData.Height = vidHeight;
+vidMetaData.Width = vidWidth;
+vidMetaData.RealFrameRate = config.realFrameRate;
+vidMetaData.Name = config.vidName;
+vidMetaData.Path = config.vidPath;
+vidMetaData.Tag = config.saveName;
+vidMetaData.Roi = roiToSave;
+
+% Find frame with maximum glottal opening
+[~,maxIdx] = max(glottisAreas);
+vidMetaData.ReferenceFrame = s(maxIdx).cdata;
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Get main glottal axis from frame with maximum glottal opening %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+glottisBinImage = false( vidMetaData.Height, vidMetaData.Width );
+
+% Fill border
+for j = 1:length( outputContours{maxIdx} )
+    currentBorder = outputContours{maxIdx}{j};
+
+    for k = 1:length(currentBorder)
+        glottisBinImage( currentBorder(k,2), currentBorder(k,1) ) = true;
+    end
+end
+glottisBinImage = imfill(glottisBinImage, 'holes');
+
+% Coordinates of all pixels inside the glottis
+[pixelRows,pixelColumns] = find(glottisBinImage == true);
+
+% Get main and normal axis with pca
+gcoef = pca([pixelRows pixelColumns]);
+gaxis = gcoef(:,1);
+
+% (x,y)
+maxBorder = [];
+for j = 1:length( outputContours{maxIdx} )
+    maxBorder = [ maxBorder; outputContours{maxIdx}{j} ];
+end
+
+center = mean(maxBorder);
+slope = gaxis(1) / gaxis(2);
+
+lineErrors = maxBorder - round(center);
+lineErrors = lineErrors(:,2) - slope * lineErrors(:,1);
+
+% We try to find the border points that intersect the main glottal axis.
+% These points will have lineError close to zero. To find them, we find the
+% indexes where LineErrors changes sign
+
+% We start checking the index with maximum error. This point will never be
+% on the line so it's safe to start here
+[maxVal, currentIdx] = max(lineErrors);
+currentSign = sign( maxVal );
+
+linePoints = [];
+for i = 1:length(lineErrors)
+    
+    nextIdx = inc( currentIdx, length(lineErrors) );
+    
+    % Map 0 to 1, so that we can only have 1 or -1
+    nextSign = sign( lineErrors(nextIdx) );
+    if nextSign == 0
+        nextSign = 1;
+    end
+    
+    % Sign change! we found a line point
+    if nextSign ~= currentSign
+        % We have two options: the current point and the next. We add the
+        % one closest to zero
+        
+        if abs( lineErrors(currentIdx) ) < abs( lineErrors(nextIdx) )
+            linePoints(end+1,:) = maxBorder(currentIdx, :);
+        else
+            linePoints(end+1,:) = maxBorder(nextIdx, :);
+        end
+    end
+    
+    currentIdx = nextIdx;
+    currentSign = nextSign;
+end
+
+% Find line points with highest and lowest y-axis value. Remember y-axis is
+% inverted in the image
+[~, highPointIdx] = min(linePoints(:,2));
+[~, lowPointIdx] = max(linePoints(:,2));
+
+axisPoints.high = linePoints(highPointIdx,:);
+axisPoints.low = linePoints(lowPointIdx,:);
+
+vidMetaData.AxisPoints = axisPoints;
+
+
+%% SAVE DATA
+
+if config.saveVideo
+    myVideo = VideoWriter(strcat('Output_videos\variance_roi_crop_seg_', vidObj.Name), 'Uncompressed AVI');
+    myVideo.FrameRate = 30;
+    open(myVideo);
+    for i = 1:length(segvideo)
+        if length(segvideo{i}) == 0
+            writeVideo(myVideo, s(i).cdata);
+        else
+            writeVideo(myVideo, segvideo{i});
+        end
+    end
+    close(myVideo);
+end
+
+save(strcat('Output_contours/', config.saveName, '.mat'), 'outputContours', 'glottisAreas', 'vidMetaData');
+
+% save log
+currDateTime = datestr(datetime);
+currDateTime(regexp(currDateTime,'[:]')) = [];
+save( [ 'Output_contours/log_' config.saveName '_' currDateTime '.mat' ], 'outputContours', 'glottisAreas', 'vidMetaData' );
+
+
+end
 
     
     

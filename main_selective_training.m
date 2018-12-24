@@ -1,3 +1,4 @@
+addpath('./functions');
 vidPath = 'C:\Users\lucassalazar12\Videos\DSP\all_videos\';
 files = dir(vidPath);
 
