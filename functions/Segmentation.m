@@ -1,9 +1,10 @@
 function [outputContours, glottisAreas, vidMetaData] =  Segmentation(trainingData, config)
 
 % Inputs:
-%   config.vidName -> Video name, without extension. Must be AVI
+%   config.vidName -> Video name, with extension
 %   config.vidPath -> Path to video, with slash at the end
 %   config.frames -> Numero of frames to process
+%   config.realFrameRate -> Original HSV framerate
 %   config.saveVideo -> Bool to indicate if we want to save a copy of the
 %                       video with the contour drawed on it 
 %   config.saveName -> Name of the output .mat containing the segmented
