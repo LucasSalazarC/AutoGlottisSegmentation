@@ -996,7 +996,7 @@ vidMetaData.Width = vidWidth;
 vidMetaData.RealFrameRate = config.realFrameRate;
 vidMetaData.Name = config.vidName;
 vidMetaData.Path = config.vidPath;
-vidMetaData.Tag = config.saveName;
+vidMetaData.Id = config.saveName;
 vidMetaData.Roi = roiToSave;
 
 % Find frame with maximum glottal opening
@@ -1090,6 +1090,12 @@ vidMetaData.AxisPoints = axisPoints;
 %% SAVE DATA
 
 if config.saveVideo
+    
+    % Create Output_videos directory if it doesn't exist
+    if exist('Output_videos', 'dir') ~= 7
+        mkdir('Output_videos');
+    end
+
     myVideo = VideoWriter(strcat('Output_videos\variance_roi_crop_seg_', vidObj.Name), 'Uncompressed AVI');
     myVideo.FrameRate = 30;
     open(myVideo);
@@ -1101,6 +1107,11 @@ if config.saveVideo
         end
     end
     close(myVideo);
+end
+
+% Create Output_contours directory if it doesn't exist
+if exist('Output_contours', 'dir') ~= 7
+    mkdir('Output_contours');
 end
 
 save(strcat('Output_contours/', config.saveName, '.mat'), 'outputContours', 'glottisAreas', 'vidMetaData');
