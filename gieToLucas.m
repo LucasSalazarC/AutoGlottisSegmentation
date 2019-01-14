@@ -2,10 +2,10 @@
 
 addpath('./functions');
 
-tag = '2kPa, 0.015 shim';
-vidName = [ 'crop ' tag '.avi' ];
-vidPath = '../CFA_MDC_v7 - Diaz/';
-textFileName = ['GIE_segdata/' tag '.txt'];
+id = '2kPa - 0,02 shim';
+vidName = [ id '.avi' ];
+vidPath = '~/Videos/';
+textFileName = ['GIE_segdata/' id '.txt'];
 text_file = fopen( textFileName, 'r' );
 lines = textscan(text_file, '%s', 'delimiter', '\n');
 lines = lines{1};
@@ -129,8 +129,7 @@ vidMetaData.Height = 256;
 vidMetaData.Width = 256;
 vidMetaData.RealFrameRate = 10000;    % I actually don't know
 vidMetaData.Name = vidName;
-vidMetaData.Path = vidPath;
-vidMetaData.Id = tag;
+vidMetaData.Id = id;
 
 vidObj = VideoReader( [vidPath vidName ] );
 
@@ -139,5 +138,10 @@ vidObj = VideoReader( [vidPath vidName ] );
 vidObj.CurrentTime = (maxIdx - 1) / vidObj.FrameRate;
 vidMetaData.ReferenceFrame = readFrame( vidObj );
 
-save(strcat('Output_contours/', tag, '.mat'), 'outputContours', 'glottisAreas', 'vidMetaData');
+%Save GIE contours in their own folder
+if exist('GIE_contours/', 'dir') ~= 7
+    mkdir('GIE_contours')
+end
+
+save(strcat('GIE_contours/', id, '.mat'), 'outputContours', 'glottisAreas', 'vidMetaData');
 
