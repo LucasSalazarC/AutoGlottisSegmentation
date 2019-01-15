@@ -4,7 +4,6 @@ function [outputContours, glottisAreas, vidMetaData] =  Segmentation(trainingDat
 %   config.vidName -> Video name, with extension
 %   config.vidPath -> Path to video, with slash at the end
 %   config.frames -> Numero of frames to process
-%   config.realFrameRate -> Original HSV framerate
 %   config.saveVideo -> Bool to indicate if we want to save a copy of the
 %                       video with the contour drawed on it 
 %   config.saveName -> Name of the output .mat containing the segmented
@@ -375,6 +374,7 @@ end
 if isempty(recGlottis)
     fprintf('Algorithm failed. No glottis found\n');
     outputContours = cell(config.frames,1);
+    glottisAreas = [];
     return
 end
 
@@ -993,9 +993,7 @@ outputContours = borderArray;
 vidMetaData = [];
 vidMetaData.Height = vidHeight;
 vidMetaData.Width = vidWidth;
-vidMetaData.RealFrameRate = config.realFrameRate;
 vidMetaData.Name = config.vidName;
-vidMetaData.Path = config.vidPath;
 vidMetaData.Id = config.saveName;
 vidMetaData.Roi = roiToSave;
 

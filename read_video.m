@@ -1,8 +1,8 @@
 %% Open and read video data
 
-vidName = 'FN001.avi';
+vidName = 'FP010 - R14.avi';
 vidPath = [ '/run/user/1000/gvfs/smb-share:server=vplab-storage.local,share=voicelab/Users/U00 - Common/'...
-                   'Current Project/P003- P1151077/Data/FN001/L.E01/S01.Pro/R14 - Rigido  i/' ];
+                   'Current Project/P003- P1151077/Data/FP010/L.E01/S01.Pro/R14 - Rigido  i/' ];
                
 vidObj = VideoReader( [ vidPath vidName ] );
 vidHeight = vidObj.Height;
