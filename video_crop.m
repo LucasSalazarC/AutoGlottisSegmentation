@@ -1,4 +1,10 @@
-vidObj = VideoReader('C:\Users\lucassalazar12\Videos\DSP\Validación - artificiales\2kPa, 0.015 shim.avi');
+vidName = 'FN008';
+vidPath = ['/run/user/1000/gvfs/smb-share:server=vplab-storage.local,share=voicelab/Users/U00 - Common/'...
+              'Current Project/P003- P1151077/Data/' vidName '/L.E01/S01.Pro/R03- Naso i/' vidName ' - R03.avi' ];
+          
+nFrames = 500;
+
+vidObj = VideoReader(vidPath);
 vidObj.CurrentTime = 0;
 firstFrame = readFrame(vidObj); 
 
@@ -39,18 +45,21 @@ s = struct('cdata', zeros( 256, 256, 3, 'uint8'), 'colormap', []);
 
 k = 1;
 vidObj.CurrentTime = 0;
-while hasFrame(vidObj)
+while k <= nFrames
     frame = readFrame(vidObj);         % Cuadros del video (imagenes)
     
-    s(k).cdata(:,:,1) = imrotate( frame( rect(2):rect(4), rect(1):rect(3), 1 ), 90 );
-    s(k).cdata(:,:,2) = imrotate( frame( rect(2):rect(4), rect(1):rect(3), 2 ), 90 );
-    s(k).cdata(:,:,3) = imrotate( frame( rect(2):rect(4), rect(1):rect(3), 3 ), 90 );
+%     s(k).cdata(:,:,1) = imrotate( frame( rect(2):rect(4), rect(1):rect(3), 1 ), 90 );
+%     s(k).cdata(:,:,2) = imrotate( frame( rect(2):rect(4), rect(1):rect(3), 2 ), 90 );
+%     s(k).cdata(:,:,3) = imrotate( frame( rect(2):rect(4), rect(1):rect(3), 3 ), 90 );
+
+    s(k).cdata(:,:,1) = frame( rect(2):rect(4), rect(1):rect(3), 1 );
+    s(k).cdata(:,:,2) = frame( rect(2):rect(4), rect(1):rect(3), 2 );
+    s(k).cdata(:,:,3) = frame( rect(2):rect(4), rect(1):rect(3), 3 );
     
     k = k+1;
 end
 
-myVideo = VideoWriter( ['C:\Users\lucassalazar12\Videos\DSP\Validación - artificiales\copy_' ...
-                        vidObj.Name ], 'Uncompressed AVI');
+myVideo = VideoWriter( [ '../Cut videos/' vidObj.Name ], 'Uncompressed AVI');
 myVideo.FrameRate = vidObj.FrameRate;
 open(myVideo);
 for i = 1:length(s)
