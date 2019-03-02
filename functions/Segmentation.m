@@ -23,13 +23,21 @@ s = struct('cdata',zeros(vidHeight,vidWidth,3,'uint8'),'colormap',[]);
 
 vidMetaData = [vidHeight vidWidth];
 
-k = 1;
 startTime = 0;
 vidObj.CurrentTime = startTime;
-endTime = startTime + config.frames/vidObj.FrameRate;
-while vidObj.CurrentTime <= endTime
-    s(k).cdata = readFrame(vidObj);
-    k = k+1;
+
+k = 1;
+if config.frames >= 1
+    endTime = startTime + config.frames/vidObj.FrameRate;
+    while vidObj.CurrentTime < endTime
+        s(k).cdata = readFrame(vidObj);
+        k = k+1;
+    end
+else
+    while hasFrame(vidObj)
+        s(k).cdata = readFrame(vidObj);
+        k = k+1;
+    end
 end
 
 % waitforbuttonpress
@@ -1083,6 +1091,15 @@ axisPoints.high = linePoints(highPointIdx,:);
 axisPoints.low = linePoints(lowPointIdx,:);
 
 vidMetaData.AxisPoints = axisPoints;
+
+
+% Make sure contours and areas have same length as video
+if length(outputContours) ~= config.frames
+    outputContours( config.frames ) = cell(1);
+end
+if length(glottisAreas) ~= config.frames
+    glottisAreas( config.frames ) = 0;
+end
 
 
 %% SAVE DATA
